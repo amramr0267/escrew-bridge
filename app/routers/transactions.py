@@ -1,0 +1,272 @@
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+from typing import List
+from datetime import datetime, timedelta
+from app.database import get_db
+import app.models as models
+import app.schemas as schemas
+from app.services.binance_api import verify_txid_on_binance
+from app.services.security import get_current_user, log_platform_revenue  
+from decimal import Decimal
+import math  
+from app.routers.notifications import create_notification
+
+router = APIRouter(
+    prefix="/api/transactions",
+    tags=["إدارة عمليات الـ P2P والضمان"]
+)
+
+# 1️⃣ البائع ينشئ عرض بيع USDT في السوق (Listing)
+@router.post("/create", response_model=schemas.ListingResponse, status_code=status.HTTP_201_CREATED)
+async def create_p2p_listing(
+    listing_in: schemas.ListingCreate, 
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """
+    إنشاء عرض بيع جديد:
+    يسحب رقم الشام كاش تلقائياً من البروفايل، ويحدد سعر الصرف ونوع العملة المحلية.
+    """
+    if listing_in.total_amount_usdt <= 0 or listing_in.min_amount_usdt <= 0:
+        raise HTTPException(status_code=400, detail="يجب أن تكون المبالغ أكبر من الصفر.")
+        
+    if listing_in.min_amount_usdt > listing_in.total_amount_usdt:
+        raise HTTPException(status_code=400, detail="الحد الأدنى للبيع لا يمكن أن يكون أكبر من المبلغ الإجمالي.")
+
+    # 🎯 سحب رقم الشام كاش من بروفايل المستخدم تلقائياً
+    if not current_user.shamcash_number:
+        raise HTTPException(status_code=400, detail="يرجى تحديث ملفك الشخصي وإضافة رقم الشام كاش قبل إنشاء عرض.")
+
+    new_listing = models.Listing(
+        seller_id=current_user.id,
+        total_amount_usdt=listing_in.total_amount_usdt,
+        remaining_amount_usdt=listing_in.total_amount_usdt, # يبدأ الرصيد كاملاً
+        min_amount_usdt=listing_in.min_amount_usdt,
+        exchange_rate=listing_in.exchange_rate,
+        fiat_currency=listing_in.fiat_currency,
+        shamcash_account=current_user.shamcash_number, # حقن تلقائي
+        is_active=True
+    )
+    
+    try:
+        db.add(new_listing)
+        db.commit()
+        db.refresh(new_listing)
+        return new_listing
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"خطأ أثناء إنشاء العرض: {str(e)}")
+
+
+# 2️⃣ المشتري يوافق على شراء جزء (أو كل) العرض ويقفل الضمان
+@router.post("/match/{listing_id}", response_model=schemas.TransactionResponse)
+async def match_buyer_to_listing(
+    listing_id: int, 
+    order: schemas.TransactionCreate, # يحتوي على buy_amount_usdt
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """
+    المطابقة الجزئية:
+    يتم التحقق من الكمية المطلوبة، حجزها، حساب القيمة المحلية، وبدء المؤقت التنازلي.
+    """
+    listing = db.query(models.Listing).filter(
+        models.Listing.id == listing_id,
+        models.Listing.is_active == True
+    ).first()
+
+    if not listing:
+        raise HTTPException(status_code=404, detail="العرض غير متاح أو نفدت كميته.")
+
+    if listing.seller_id == current_user.id:
+        raise HTTPException(status_code=400, detail="لا يمكنك الشراء من العرض الخاص بك!")
+
+    # 🎯 التحقق من حدود الشراء (Min / Max)
+    if order.buy_amount_usdt < listing.min_amount_usdt:
+        raise HTTPException(status_code=400, detail=f"الحد الأدنى للشراء من هذا العرض هو {listing.min_amount_usdt} USDT")
+        
+    if order.buy_amount_usdt > listing.remaining_amount_usdt:
+        raise HTTPException(status_code=400, detail="الكمية المطلوبة تتجاوز الرصيد المتبقي المتاح في العرض.")
+
+    # 🎯 خصم الرصيد وتحديث حالة العرض
+    listing.remaining_amount_usdt -= order.buy_amount_usdt
+    if listing.remaining_amount_usdt < listing.min_amount_usdt:
+        listing.is_active = False # إغلاق العرض إذا أصبح المتبقي أقل من الحد الأدنى
+
+    # 🎯 جلب المؤقت الإداري العام (مثلاً 20 دقيقة)
+    config = db.query(models.GlobalConfig).first()
+    timeout = config.transaction_timeout_minutes if config else 20
+    expiry_time = datetime.utcnow() + timedelta(minutes=timeout)
+
+    # 🎯 حساب القيمة المحلية المطلوبة بناءً على سعر الصرف
+    fiat_to_pay = float(order.buy_amount_usdt) * listing.exchange_rate
+
+    # إنشاء الصفقة الحية المستقلة
+    new_tx = models.Transaction(
+        listing_id=listing.id,
+        buyer_id=current_user.id,
+        seller_id=listing.seller_id,
+        locked_usdt_amount=order.buy_amount_usdt,
+        fiat_amount_to_pay=fiat_to_pay,
+        expires_at=expiry_time,
+        status="pending"
+    )
+    
+    db.add(new_tx)
+    db.commit()
+    db.refresh(new_tx)
+    return new_tx
+
+
+# 3️⃣ مسار جلب السجل المالي لصفحة البروفايل
+# أضف هذا المسار داخل ملف transactions.py
+@router.get("/my-history", response_model=List[schemas.TransactionResponse])
+def get_my_transaction_history(
+    db: Session = Depends(get_db), 
+    current_user: models.User = Depends(get_current_user)
+):
+    """سحب كافة الصفقات التي شارك فيها المتداول الحالي."""
+    history = db.query(models.Transaction).filter(
+        (models.Transaction.seller_id == current_user.id) | 
+        (models.Transaction.buyer_id == current_user.id)
+    ).order_by(models.Transaction.created_at.desc()).all()
+    
+    return history
+
+
+# 4️⃣ مسار جلب كافة عمليات السوق العام (العروض النشطة فقط)
+@router.get("/all", response_model=List[schemas.ListingResponse])
+async def get_all_active_listings(db: Session = Depends(get_db)):
+    """
+    جلب العروض المتاحة (Listings) في السوق العام للزوار والمتداولين.
+    """
+    try:
+        listings = db.query(models.Listing).filter(models.Listing.is_active == True).all()
+        return listings
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"خطأ أثناء جلب السوق: {str(e)}")
+
+
+# 5️⃣ مسار جلب تفاصيل صفقة محددة لدخول غرفة الضمان
+@router.get("/{id}", response_model=schemas.TransactionResponse)
+def get_transaction_by_id(
+    id: int, 
+    db: Session = Depends(get_db), 
+    current_user: models.User = Depends(get_current_user)
+):
+    tx = db.query(models.Transaction).filter(models.Transaction.id == id).first()
+    if not tx:
+        raise HTTPException(status_code=404, detail="عذراً، هذه الصفقة غير موجودة في النظام.")
+    
+    if current_user.role != "admin" and current_user.id != tx.seller_id and current_user.id != tx.buyer_id:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بدخول غرفة هذه الصفقة.")
+        
+    return tx
+
+
+# 6️⃣ إرفاق رمز تحويل البلوكشين أو إيصال الحوالة المحلية
+@router.post("/submit-txid", response_model=schemas.TransactionResponse)
+async def submit_txid(
+    payload: schemas.TxIDSubmit, 
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    transaction = db.query(models.Transaction).filter(models.Transaction.id == payload.transaction_id).first()
+    if not transaction:
+        raise HTTPException(status_code=404, detail="المعاملة غير موجودة.")
+        
+    if current_user.id != transaction.buyer_id and current_user.id != transaction.seller_id:
+        raise HTTPException(status_code=403, detail="أنت لست طرفاً في هذه المعاملة لإرسال الإثباتات.")
+
+    if current_user.id == transaction.seller_id:
+        is_valid = await verify_txid_on_binance(payload.txid, float(transaction.locked_usdt_amount))
+        if is_valid:
+            transaction.txid = payload.txid
+            transaction.status = "crypto_confirmed"
+        else:
+            raise HTTPException(status_code=400, detail="فشل التحقق الرقمي من الحوالة عبر Binance.")
+    else:
+        if transaction.status not in ["pending", "crypto_confirmed"]:
+            raise HTTPException(status_code=400, detail="حالة الصفقة الحالية لا تسمح بتقديم إثبات دفع.")
+            
+        transaction.txid = payload.txid
+        transaction.status = "crypto_confirmed" 
+        
+    db.commit()
+    db.refresh(transaction)
+    return transaction
+
+
+# 7️⃣ زر البائع لتأكيد استلام كاش الشام كاش والإفراج التلقائي
+@router.post("/release-crypto/{transaction_id}", response_model=schemas.TransactionResponse)
+async def release_crypto_to_buyer(
+    transaction_id: int, 
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    transaction = db.query(models.Transaction).filter(
+        models.Transaction.id == transaction_id,
+        models.Transaction.status == "crypto_confirmed"
+    ).first()
+
+    if not transaction:
+        raise HTTPException(status_code=404, detail="المعاملة غير موجودة أو ليست في حالة انتظار الإفراج.")
+
+    if transaction.seller_id != current_user.id:
+        raise HTTPException(status_code=403, detail="صلاحية مرفوضة! البائع فقط هو المخول بالإفراج.")
+
+    # 🎯 المنطق المالي للرسوم:
+    # 1. إجمالي ما سيتم تحويله للمشتري (999 بدلاً من 1000)
+    net_to_buyer = transaction.locked_usdt_amount - transaction.buyer_fee
+    
+    # 2. هنا يجب استدعاء خدمة تحويل الأموال الفعلية (Blockchain Service)
+    # مثال: transfer_usdt(to=transaction.buyer_wallet, amount=net_to_buyer)
+    
+    # 3. تحديث الحالة
+    transaction.status = "completed"
+    
+    try:
+        db.commit()
+        db.refresh(transaction)
+        
+        # 🎯 تسجيل العملية للأدمن (اختياري: يمكنك إضافة سجل في جدول الأرباح)
+        log_platform_revenue(
+            transaction_id=transaction.id, 
+            amount=transaction.seller_fee + transaction.buyer_fee
+        )
+        
+        return transaction
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"خطأ أثناء الإفراج وتحصيل الرسوم: {str(e)}")
+
+# 8️⃣ زر المشتري لفتح نزاع/اعتراض رسمي في حال مماطلة البائع
+@router.post("/raise-dispute/{transaction_id}", response_model=schemas.TransactionResponse)
+async def raise_transaction_dispute(
+    transaction_id: int, 
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    # 1. البحث عن المعاملة (تعديل: السماح بفتح النزاع في حالتي pending أو crypto_confirmed)
+    transaction = db.query(models.Transaction).filter(
+        models.Transaction.id == transaction_id,
+        models.Transaction.status.in_(["pending", "crypto_confirmed"]) 
+    ).first()
+
+    if not transaction:
+        raise HTTPException(status_code=400, detail="لا يمكن فتح نزاع: المعاملة إما مكتملة، ملغاة، أو قيد النزاع بالفعل.")
+
+    # 2. التحقق من أن المستخدم طرف في العملية (سواء كان بائعاً أو مشترياً)
+    if transaction.buyer_id != current_user.id and transaction.seller_id != current_user.id:
+        raise HTTPException(status_code=403, detail="لا يمكنك رفع نزاع على معاملة لست طرفاً فيها.")
+
+    # 3. تحديث الحالة
+    transaction.status = "disputed"
+    
+    try:
+        db.commit()
+        db.refresh(transaction)
+        return transaction
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"خطأ أثناء فتح النزاع الإداري: {str(e)}")
