@@ -1,5 +1,7 @@
 import os
 import logging
+from time import time
+from xmlrpc import client
 from binance.spot import Spot
 from binance.error import ClientError
 
@@ -61,3 +63,29 @@ async def verify_txid_on_binance(txid: str, expected_amount: float) -> bool:
     except Exception as e:
         logger.error(f"[Binance API General Error] {str(e)}")
         return False
+    
+
+async def execute_binance_withdrawal(address: str, amount: float, coin: str = "USDT", network: str = "TRC20") -> dict:
+    """
+    تقوم هذه الدالة بسحب المبلغ المطلوب من محفظة البائع وإرساله إلى عنوان المشتري.
+    """
+    try:
+        # تنفيذ عملية السحب (Withdraw)
+        # ملاحظة: Binance تتطلب مبلغاً أدنى (Minimum Withdrawal) لكل عملة
+        response = client.withdraw(
+            coin=coin,
+            address=address,
+            amount=amount,
+            network=network,
+            timestamp=int(time.time() * 1000)
+        )
+        
+        logger.info(f"[Binance Withdraw] تم إرسال {amount} {coin} إلى {address}. الـ ID: {response.get('id')}")
+        return response
+
+    except ClientError as e:
+        logger.error(f"[Binance Withdraw Error] {e.error_message}")
+        raise Exception(f"خطأ في الاتصال بـ Binance: {e.error_message}")
+    except Exception as e:
+        logger.error(f"[Binance Withdraw General Error] {str(e)}")
+        raise Exception(f"حدث خطأ غير متوقع: {str(e)}")

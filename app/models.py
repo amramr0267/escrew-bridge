@@ -17,19 +17,43 @@ class User(Base):
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
     role = Column(String, default="user")
-    shamcash_number = Column(String, nullable=False) # 🎯 الحقل الجديد الإجباري
+    shamcash_number = Column(String, nullable=False)
+    phone_number = Column(String, nullable=True) # 🎯 الحقل الجديد الخاص
+    is_verified = Column(Boolean, default=False)
+    id_card_url = Column(String, nullable=True)
+    verification_status = Column(String, default="unverified")
+    
+    # العلاقات
+    listings = relationship("Listing", back_populates="seller")
+    transactions_as_buyer = relationship("Transaction", foreign_keys="[Transaction.buyer_id]", back_populates="buyer")
+    transactions_as_seller = relationship("Transaction", foreign_keys="[Transaction.seller_id]", back_populates="seller")
+
+
+class VerificationRequest(Base):
+    __tablename__ = "verification_requests"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    id_card_image_path = Column(String, nullable=False) # مسار الصورة على السيرفر
+    status = Column(String, default="pending")          # 'pending', 'approved', 'rejected'
+    created_at = Column(DateTime, default=datetime.utcnow)
+
 
 class Listing(Base):
     __tablename__ = "listings"
     id = Column(Integer, primary_key=True, index=True)
     seller_id = Column(Integer, ForeignKey("users.id"))
     total_amount_usdt = Column(Float, nullable=False)
-    remaining_amount_usdt = Column(Float, nullable=False) # 🎯 المبلغ المتبقي للتداول الجزئي
-    min_amount_usdt = Column(Float, nullable=False)       # 🎯 الحد الأدنى للبيع
-    exchange_rate = Column(Float, nullable=False)         # 🎯 سعر الصرف المخصص
-    fiat_currency = Column(Enum(FiatCurrency), default=FiatCurrency.SYP) # 🎯 نوع العملة
-    shamcash_account = Column(String, nullable=False)     # يُسحب تلقائياً من البائع
+    remaining_amount_usdt = Column(Float, nullable=False)
+    min_amount_usdt = Column(Float, nullable=False)
+    exchange_rate = Column(Float, nullable=False)
+    fiat_currency = Column(Enum(FiatCurrency), default=FiatCurrency.SYP)
+    shamcash_account = Column(String, nullable=False)
     is_active = Column(Boolean, default=True)
+    
+    # العلاقات
+    seller = relationship("User", back_populates="listings")
+    transactions = relationship("Transaction", back_populates="listing")
+
 
 # أضف هذه الحقول إلى كلاس Transaction
 class Transaction(Base):
@@ -38,19 +62,23 @@ class Transaction(Base):
     listing_id = Column(Integer, ForeignKey("listings.id"))
     buyer_id = Column(Integer, ForeignKey("users.id"))
     seller_id = Column(Integer, ForeignKey("users.id"))
-    
-    # الكميات الأساسية
-    locked_usdt_amount = Column(Float, nullable=False)    # الـ 1000 USDT (أصل الصفقة)
+    locked_usdt_amount = Column(Float, nullable=False)
     fiat_amount_to_pay = Column(Float, nullable=False)
-    
-    # 🎯 حقول نظام الرسوم الجديد
-    seller_fee = Column(Float, default=1.0)           # عمولة البائع (تُدفع عند الإنشاء)
-    buyer_fee = Column(Float, default=1.0)            # عمولة المشتري (تُخصم عند الإفراج)
-    
+    seller_fee = Column(Float, default=1.0)
+    buyer_fee = Column(Float, default=1.0)
     status = Column(String, default="pending")
     txid = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
-    expires_at = Column(DateTime, nullable=False)        # 🎯 وقت انتهاء الصفقة
+    expires_at = Column(DateTime, nullable=False)
+    
+    # العلاقات
+    listing = relationship("Listing", back_populates="transactions")
+    buyer = relationship("User", foreign_keys=[buyer_id], back_populates="transactions_as_buyer")
+    seller = relationship("User", foreign_keys=[seller_id], back_populates="transactions_as_seller")
+    buyer_wallet_address = Column(String, nullable=False) # عنوان محفظة المشتري
+    completed_at = Column(DateTime, nullable=True)        # تاريخ الإتمام
+    release_txid = Column(String, nullable=True)          # معرف التحويل عند الإفراج
+
 
 class GlobalConfig(Base):
     __tablename__ = "global_config"

@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from app.database import get_db
 import app.models as models
 import app.schemas as schemas
-from app.services.binance_api import verify_txid_on_binance
+from app.services.binance_api import execute_binance_withdrawal, verify_txid_on_binance
 from app.services.security import get_current_user, log_platform_revenue  
 from decimal import Decimal
 import math  
@@ -108,10 +108,11 @@ async def match_buyer_to_listing(
         seller_id=listing.seller_id,
         locked_usdt_amount=order.buy_amount_usdt,
         fiat_amount_to_pay=fiat_to_pay,
+        buyer_wallet_address=order.buyer_wallet_address, # 🎯 إضافة هذا الحقل
         expires_at=expiry_time,
-        status="pending"
+        status="pending_deposit"
     )
-    
+        
     db.add(new_tx)
     db.commit()
     db.refresh(new_tx)
@@ -137,15 +138,21 @@ def get_my_transaction_history(
 # 4️⃣ مسار جلب كافة عمليات السوق العام (العروض النشطة فقط)
 @router.get("/all", response_model=List[schemas.ListingResponse])
 async def get_all_active_listings(db: Session = Depends(get_db)):
-    """
-    جلب العروض المتاحة (Listings) في السوق العام للزوار والمتداولين.
-    """
-    try:
-        listings = db.query(models.Listing).filter(models.Listing.is_active == True).all()
-        return listings
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"خطأ أثناء جلب السوق: {str(e)}")
-
+    # نقوم بعمل join بين Listing و User للحصول على بيانات البائع
+    listings = db.query(models.Listing).filter(models.Listing.is_active == True).all()
+    
+    # تنسيق الرد ليطابق الـ Schema الجديد
+    result = []
+    for listing in listings:
+        seller = db.query(models.User).filter(models.User.id == listing.seller_id).first()
+        result.append({
+            **listing.__dict__,
+            "seller_info": {
+                "username": seller.username,
+                "is_verified": seller.is_verified
+            }
+        })
+    return result
 
 # 5️⃣ مسار جلب تفاصيل صفقة محددة لدخول غرفة الضمان
 @router.get("/{id}", response_model=schemas.TransactionResponse)
@@ -196,38 +203,56 @@ async def submit_txid(
     db.refresh(transaction)
     return transaction
 
-@router.post("/release-crypto/{transaction_id}", response_model=schemas.TransactionResponse)
+@router.post("/release-crypto/{transaction_id}")
 async def release_crypto_to_buyer(
     transaction_id: int, 
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
+    # 1. التحقق من الصفقة
     transaction = db.query(models.Transaction).filter(
-        models.Transaction.id == transaction_id,
-        models.Transaction.status == "crypto_confirmed"
+        models.Transaction.id == transaction_id
     ).first()
 
+    # حماية: التأكد أن المستخدم هو البائع الأصلي للصفقة
     if not transaction or transaction.seller_id != current_user.id:
-        raise HTTPException(status_code=403, detail="لا يمكنك تنفيذ هذه العملية.")
+        raise HTTPException(status_code=403, detail="لا تملك صلاحية الإفراج عن هذه الصفقة.")
 
-    transaction.status = "completed"
-    
+    # حماية: التأكد أن الحالة تسمح بالإفراج
+    if transaction.status != "payment_proof_submitted":
+        raise HTTPException(status_code=400, detail="لا يمكن الإفراج: الحالة الحالية لا تسمح بذلك.")
+
+    # 2. تنفيذ التحويل من محفظة التطبيق (App Wallet)
     try:
+        # خصم الرسوم (Fee) من المبلغ الإجمالي
+        total_amount = float(transaction.locked_usdt_amount)
+        fee = total_amount * 0.01  # عمولة 1%
+        release_amount = total_amount - fee
+
+        # استدعاء دالة التحويل (التي أنشأناها مسبقاً)
+        withdrawal_response = await execute_binance_withdrawal(
+            address=transaction.buyer_wallet_address,
+            amount=release_amount
+        )
+        
+        # 3. تحديث قاعدة البيانات عند نجاح التحويل فقط
+        transaction.status = "completed"
+        transaction.release_txid = withdrawal_response.get('id')
+        transaction.completed_at = datetime.utcnow()
+        
         db.commit()
         db.refresh(transaction)
         
-        # تسجيل الأرباح مع تمرير كائن db
-        log_platform_revenue(
-            db=db, 
-            transaction_id=transaction.id, 
-            amount=transaction.seller_fee + transaction.buyer_fee
-        )
+        # 4. تسجيل الأرباح في جدول الإيرادات
+        log_platform_revenue(db, transaction.id, fee)
         
-        return transaction
+        return {"message": "تم الإفراج عن الأموال بنجاح للمشتري", "txid": transaction.release_txid}
+
     except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"خطأ: {str(e)}")
-    
+        db.rollback() # تراجع عن أي تغيير في القاعدة إذا فشل التحويل
+        raise HTTPException(status_code=500, detail=f"فشل الإفراج التلقائي: {str(e)}")
+
+
 # 8️⃣ زر المشتري لفتح نزاع/اعتراض رسمي في حال مماطلة البائع
 @router.post("/raise-dispute/{transaction_id}", response_model=schemas.TransactionResponse)
 async def raise_transaction_dispute(

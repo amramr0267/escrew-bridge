@@ -22,6 +22,14 @@ class UserResponse(BaseModel):
     class Config:
         from_attributes = True  # ضرورية لتحويل بيانات SQLAlchemy إلى JSON (في Pydantic v1 تُكتب orm_mode = True)
 
+class UserBasicResponse(BaseModel):
+    username: str
+    is_verified: bool
+    # يمكن إضافة أي حقول أخرى يحتاجها السوق
+    class Config:
+        from_attributes = True
+
+
 
 # ==========================================
 # 2️⃣ نماذج العروض في السوق (Listings)
@@ -43,6 +51,7 @@ class ListingResponse(BaseModel):
     fiat_currency: str
     shamcash_account: str
     is_active: bool
+    seller_info: UserBasicResponse # 🎯 إضافة هذا الحقل
 
     class Config:
         from_attributes = True
@@ -77,6 +86,8 @@ class TransactionResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class AdminUserResponse(UserResponse):
+    phone_number: Optional[str] = None # هذا يظهر فقط للأدمن
 
 # ==========================================
 # 4️⃣ نماذج تسجيل الدخول (Tokens)

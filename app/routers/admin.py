@@ -8,7 +8,7 @@ from app.database import get_db
 import app.models as models
 import app.schemas as schemas
 from decimal import Decimal
-from app.services.security import get_current_admin  # استيراد حارس الإدارة الصارم
+from app.services.security import get_current_admin, get_current_user  # استيراد حارس الإدارة الصارم
 
 router = APIRouter(
     prefix="/api/admin",
@@ -229,3 +229,17 @@ async def get_detailed_stats(
     }
 
 
+@router.get("/users/{user_id}", response_model=schemas.AdminUserResponse)
+async def get_user_details_for_admin(
+    user_id: int, 
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="صلاحية الوصول للأدمن فقط.")
+        
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="المستخدم غير موجود.")
+        
+    return user # هنا الـ API سيعيد الـ AdminUserResponse التي تحتوي على الرقم
