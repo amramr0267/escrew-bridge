@@ -9,8 +9,8 @@ logger = logging.getLogger(__name__)
 
 # جلب الإعدادات من متغيرات بيئة Vercel
 BINANCE_API_KEY = os.getenv("BINANCE_API_KEY", "")
-BINANCE_API_SECRET = os.getenv("BINANCE_API_SECRET", "")
-BINANCE_MODE = os.getenv("BINANCE_MODE", "test")
+BINANCE_API_SECRET = os.getenv("BINANCE_SECRET_KEY", "")
+BINANCE_MODE = os.getenv("BINANCE_MODE", "production")  # يمكن أن يكون "test" أو "production"
 
 async def verify_txid_on_binance(txid: str, expected_amount: float) -> bool:
     """
