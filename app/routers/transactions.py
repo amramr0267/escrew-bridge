@@ -172,32 +172,30 @@ async def submit_txid(
     current_user: models.User = Depends(get_current_user)
 ):
     transaction = db.query(models.Transaction).filter(models.Transaction.id == payload.transaction_id).first()
+    
     if not transaction:
         raise HTTPException(status_code=404, detail="المعاملة غير موجودة.")
         
     if current_user.id != transaction.buyer_id and current_user.id != transaction.seller_id:
-        raise HTTPException(status_code=403, detail="أنت لست طرفاً في هذه المعاملة لإرسال الإثباتات.")
+        raise HTTPException(status_code=403, detail="أنت لست طرفاً في هذه المعاملة.")
 
+    # منطق التحقق: البائع يثبت التحويل المشفر، والمشتري يثبت التحويل النقدي
     if current_user.id == transaction.seller_id:
         is_valid = await verify_txid_on_binance(payload.txid, float(transaction.locked_usdt_amount))
         if is_valid:
             transaction.txid = payload.txid
             transaction.status = "crypto_confirmed"
         else:
-            raise HTTPException(status_code=400, detail="فشل التحقق الرقمي من الحوالة عبر Binance.")
+            raise HTTPException(status_code=400, detail="فشل التحقق الرقمي عبر Binance.")
     else:
-        if transaction.status not in ["pending", "crypto_confirmed"]:
-            raise HTTPException(status_code=400, detail="حالة الصفقة الحالية لا تسمح بتقديم إثبات دفع.")
-            
+        # حالة إثبات دفع المشتري
         transaction.txid = payload.txid
-        transaction.status = "crypto_confirmed" 
+        transaction.status = "payment_proof_submitted"
         
     db.commit()
     db.refresh(transaction)
     return transaction
 
-
-# 7️⃣ زر البائع لتأكيد استلام كاش الشام كاش والإفراج التلقائي
 @router.post("/release-crypto/{transaction_id}", response_model=schemas.TransactionResponse)
 async def release_crypto_to_buyer(
     transaction_id: int, 
@@ -209,29 +207,18 @@ async def release_crypto_to_buyer(
         models.Transaction.status == "crypto_confirmed"
     ).first()
 
-    if not transaction:
-        raise HTTPException(status_code=404, detail="المعاملة غير موجودة أو ليست في حالة انتظار الإفراج.")
+    if not transaction or transaction.seller_id != current_user.id:
+        raise HTTPException(status_code=403, detail="لا يمكنك تنفيذ هذه العملية.")
 
-    if transaction.seller_id != current_user.id:
-        raise HTTPException(status_code=403, detail="صلاحية مرفوضة! البائع فقط هو المخول بالإفراج.")
-
-    # 🎯 المنطق المالي للرسوم:
-    # 1. إجمالي ما سيتم تحويله للمشتري (999 بدلاً من 1000)
-    net_to_buyer = transaction.locked_usdt_amount - transaction.buyer_fee
-    
-    # 2. هنا يجب استدعاء خدمة تحويل الأموال الفعلية (Blockchain Service)
-    # مثال: transfer_usdt(to=transaction.buyer_wallet, amount=net_to_buyer)
-    
-    # 3. تحديث الحالة
     transaction.status = "completed"
     
     try:
         db.commit()
         db.refresh(transaction)
         
-        # 🎯 تسجيل العملية للأدمن (اختياري: يمكنك إضافة سجل في جدول الأرباح)
+        # تسجيل الأرباح مع تمرير كائن db
         log_platform_revenue(
-            db=db,  # <--- إضافة هذا السطر
+            db=db, 
             transaction_id=transaction.id, 
             amount=transaction.seller_fee + transaction.buyer_fee
         )
@@ -239,8 +226,8 @@ async def release_crypto_to_buyer(
         return transaction
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"خطأ أثناء الإفراج وتحصيل الرسوم: {str(e)}")
-
+        raise HTTPException(status_code=500, detail=f"خطأ: {str(e)}")
+    
 # 8️⃣ زر المشتري لفتح نزاع/اعتراض رسمي في حال مماطلة البائع
 @router.post("/raise-dispute/{transaction_id}", response_model=schemas.TransactionResponse)
 async def raise_transaction_dispute(
