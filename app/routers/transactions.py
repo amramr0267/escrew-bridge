@@ -231,6 +231,7 @@ async def release_crypto_to_buyer(
         
         # 🎯 تسجيل العملية للأدمن (اختياري: يمكنك إضافة سجل في جدول الأرباح)
         log_platform_revenue(
+            db=db,  # <--- إضافة هذا السطر
             transaction_id=transaction.id, 
             amount=transaction.seller_fee + transaction.buyer_fee
         )
