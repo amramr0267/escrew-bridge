@@ -282,3 +282,28 @@ async def raise_transaction_dispute(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"خطأ أثناء فتح النزاع الإداري: {str(e)}")
+    
+@router.delete("/{transaction_id}")
+async def delete_transaction(
+    transaction_id: int, 
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    # 1. جلب الصفقة
+    transaction = db.query(models.Transaction).filter(models.Transaction.id == transaction_id).first()
+    if not transaction:
+        raise HTTPException(status_code=404, detail="الصفقة غير موجودة.")
+    
+    # 2. التحقق من الصلاحية (أن يكون هو المشتري أو البائع)
+    if transaction.buyer_id != current_user.id and transaction.seller_id != current_user.id:
+        raise HTTPException(status_code=403, detail="لا تملك صلاحية إلغاء هذه الصفقة.")
+    
+    # 3. شرط الإلغاء: يجب أن تكون في حالة انتظار
+    if transaction.status != "pending":
+        raise HTTPException(status_code=400, detail="لا يمكن حذف صفقة غير معلقة.")
+    
+    # 4. تنفيذ الحذف
+    db.delete(transaction)
+    db.commit()
+    
+    return {"message": "تم إلغاء الصفقة وحذفها بنجاح."}
