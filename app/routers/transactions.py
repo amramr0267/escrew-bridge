@@ -138,21 +138,20 @@ def get_my_transaction_history(
 # 4️⃣ مسار جلب كافة عمليات السوق العام (العروض النشطة فقط)
 @router.get("/all", response_model=List[schemas.ListingResponse])
 async def get_all_active_listings(db: Session = Depends(get_db)):
-    # نقوم بعمل join بين Listing و User للحصول على بيانات البائع
     listings = db.query(models.Listing).filter(models.Listing.is_active == True).all()
     
-    # تنسيق الرد ليطابق الـ Schema الجديد
-    result = []
-    for listing in listings:
-        seller = db.query(models.User).filter(models.User.id == listing.seller_id).first()
-        result.append({
-            **listing.__dict__,
-            "seller_info": {
-                "username": seller.username,
-                "is_verified": seller.is_verified
-            }
-        })
-    return result
+    # تحويل الموديلات إلى قواميس وإضافة seller_info يدوياً
+    results = []
+    for l in listings:
+        seller = db.query(models.User).filter(models.User.id == l.seller_id).first()
+        listing_dict = l.__dict__
+        listing_dict["seller_info"] = {
+            "username": seller.username if seller else "Unknown",
+            "is_verified": seller.is_verified if seller else False
+        }
+        results.append(listing_dict)
+    
+    return results
 
 # 5️⃣ مسار جلب تفاصيل صفقة محددة لدخول غرفة الضمان
 @router.get("/{id}", response_model=schemas.TransactionResponse)

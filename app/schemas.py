@@ -51,8 +51,7 @@ class ListingResponse(BaseModel):
     fiat_currency: str
     shamcash_account: str
     is_active: bool
-    seller_info: UserBasicResponse # 🎯 إضافة هذا الحقل
-
+    seller_info: Optional[UserBasicResponse] = None
     class Config:
         from_attributes = True
 
