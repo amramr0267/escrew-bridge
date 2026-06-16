@@ -108,7 +108,7 @@ async def match_buyer_to_listing(
         seller_id=listing.seller_id,
         locked_usdt_amount=order.buy_amount_usdt,
         fiat_amount_to_pay=fiat_to_pay,
-        buyer_wallet_address=order.buyer_wallet_address, # 🎯 إضافة هذا الحقل
+        buyer_wallet_address = getattr(order, 'buyer_wallet_address', 'N/A'),
         expires_at=expiry_time,
         status="pending_deposit"
     )

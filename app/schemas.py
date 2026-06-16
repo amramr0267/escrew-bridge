@@ -62,6 +62,7 @@ class ListingResponse(BaseModel):
 
 class TransactionCreate(BaseModel):
     buy_amount_usdt: float = Field(..., gt=0)
+    buyer_wallet_address: str  # تأكد من إضافة هذا الحقل
 
 class TxIDSubmit(BaseModel):
     transaction_id: int
