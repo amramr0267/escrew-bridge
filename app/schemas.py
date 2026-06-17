@@ -42,6 +42,11 @@ class ListingCreate(BaseModel):
     fiat_currency: str
     type: str  # 'buy' or 'sell'
 
+
+class SellerInfo(BaseModel):
+    username: str
+    is_verified: bool
+
 class ListingResponse(BaseModel):
     id: int
     seller_id: int
@@ -54,7 +59,7 @@ class ListingResponse(BaseModel):
     is_active: bool
     type: str  # 'buy' or 'sell'
     is_verified: bool
-    seller_info: Optional[UserBasicResponse] = None
+    seller_info: SellerInfo # Add this field to the schema
     class Config:
         from_attributes = True
 

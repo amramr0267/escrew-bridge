@@ -140,18 +140,23 @@ def get_my_transaction_history(
 # 4️⃣ مسار جلب كافة عمليات السوق العام (العروض النشطة فقط)
 @router.get("/all", response_model=List[schemas.ListingResponse])
 async def get_all_active_listings(db: Session = Depends(get_db)):
-    listings = db.query(models.Listing).filter(models.Listing.is_active == True).all()
+    # Use a join to get listings and users in one single efficient query
+    listings_with_users = (
+        db.query(models.Listing, models.User)
+        .join(models.User, models.Listing.seller_id == models.User.id)
+        .filter(models.Listing.is_active == True)
+        .all()
+    )
     
-    # تحويل الموديلات إلى قواميس وإضافة seller_info يدوياً
     results = []
-    for l in listings:
-        seller = db.query(models.User).filter(models.User.id == l.seller_id).first()
-        listing_dict = l.__dict__
-        listing_dict["seller_info"] = {
-            "username": seller.username if seller else "Unknown",
-            "is_verified": seller.is_verified if seller else False
+    for listing, user in listings_with_users:
+        # Create a dictionary or use the model instance directly
+        listing_data = schemas.ListingResponse.model_validate(listing)
+        listing_data.seller_info = {
+            "username": user.username,
+            "is_verified": user.is_verified
         }
-        results.append(listing_dict)
+        results.append(listing_data)
     
     return results
 
