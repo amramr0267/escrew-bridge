@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 from .. import models, schemas, database # Adjust imports based on your folder structure
-from .auth import get_current_user # Adjust path to your auth helper
+from app.routers.auth import get_current_user # Adjust path to your auth helper
 
 router = APIRouter()
 
