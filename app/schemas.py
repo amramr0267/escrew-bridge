@@ -59,7 +59,8 @@ class ListingResponse(BaseModel):
     is_active: bool
     type: str  # 'buy' or 'sell'
     is_verified: bool
-    seller_info: SellerInfo # Add this field to the schema
+    seller_info: Optional[SellerInfo] = None
+    
     class Config:
         from_attributes = True
 
