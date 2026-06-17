@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine, Base
 # استيراد نظيف ومرة واحدة فقط لكل ملف
-from app.routers import transactions, admin, auth , users
+from app.routers import transactions, admin, auth , users, listings
 
 from app.routers import notifications # تأكد من المسار الصحيح
 
@@ -30,6 +30,7 @@ app.include_router(auth.router)
 app.include_router(transactions.router, prefix="/api/transactions", tags=["Transactions"])
 app.include_router(admin.router)
 app.include_router(users.router)
+app.include_router(listings.router, prefix="/api/listings", tags=["listings"])
 app.include_router(notifications.router)
 
 

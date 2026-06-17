@@ -11,7 +11,7 @@ from decimal import Decimal
 import math  
 from app.routers.notifications import create_notification
 
-router = APIRouter(prefix="/api/listings", tags=["Transactions"]) 
+router = APIRouter(prefix="", tags=["Transactions"]) 
 
 # 1️⃣ البائع ينشئ عرض بيع USDT في السوق (Listing)
 @router.post("/create", response_model=schemas.ListingResponse, status_code=status.HTTP_201_CREATED)
