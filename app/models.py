@@ -1,14 +1,20 @@
+from typing import List
+
+from pydantic import BaseModel
 from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Enum, Boolean 
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import enum
 
 from app.database import Base
+from backend.app.schemas import ListingResponse, TransactionResponse
 
 # تحديد نوع العملة المحلية
 class FiatCurrency(str, enum.Enum):
     SYP = "SYP"
     USD = "USD"
+
+    
 
 class User(Base):
     __tablename__ = "users"
@@ -80,6 +86,21 @@ class Transaction(Base):
     completed_at = Column(DateTime, nullable=True)        # تاريخ الإتمام
     release_txid = Column(String, nullable=True)          # معرف التحويل عند الإفراج
 
+class TransactionResponse(BaseModel):
+    id: int
+    locked_usdt_amount: float
+    fiat_amount_to_pay: float
+    status: str
+    created_at: datetime    
+    # We add a computed field in the frontend or backend to show "Buy" or "Sell"
+
+class UserFullProfile(BaseModel):
+    user: User # Assuming you have a basic User schema
+    listings: List[ListingResponse]
+    history: List[TransactionResponse]
+
+    class Config:
+        from_attributes = True
 
 class GlobalConfig(Base):
     __tablename__ = "global_config"
