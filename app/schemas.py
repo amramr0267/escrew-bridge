@@ -2,7 +2,6 @@ from pydantic import BaseModel, Field
 from typing import List, Optional
 from datetime import datetime
 
-from app.models import User
 
 # ==========================================
 # 1️⃣ نماذج المستخدمين (Users)
@@ -108,10 +107,19 @@ class Token(BaseModel):
     access_token: str
     token_type: str
     role: str
+    
+class UserRead(BaseModel):
+    id: int
+    username: str
+    email: str
+    shamcash_number: str
+    is_verified: bool
 
+    class Config:
+        from_attributes = True
 
 class UserFullProfile(BaseModel):
-    user: User # Use the Pydantic model, not models.User
+    user: UserRead # Use the Pydantic model, not models.User
     listings: List[ListingResponse]
     history: List[TransactionResponse]
 
