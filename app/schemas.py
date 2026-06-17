@@ -119,9 +119,9 @@ class UserRead(BaseModel):
         from_attributes = True
 
 class UserFullProfile(BaseModel):
-    user: UserRead # Use the Pydantic model, not models.User
+    user: UserRead 
     listings: List[ListingResponse]
     history: List[TransactionResponse]
 
     class Config:
-        from_attributes = True # This tells Pydantic to read from SQLAlchemy objects
+        from_attributes = True

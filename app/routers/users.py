@@ -13,6 +13,28 @@ router = APIRouter(prefix="/api/users", tags=["Users"])
 def get_user_me(current_user: models.User = Depends(get_current_user)):
     return current_user
 
+
+
+
+@router.get("/me/full-data", response_model=schemas.UserFullProfile)
+async def get_user_full_profile(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    user_listings = db.query(models.Listing).filter(models.Listing.seller_id == current_user.id).all()
+    
+    history = db.query(models.Transaction).filter(
+        (models.Transaction.buyer_id == current_user.id) | 
+        (models.Transaction.seller_id == current_user.id)
+    ).order_by(models.Transaction.created_at.desc()).all()
+    
+    # 🎯 THIS IS THE BRIDGE: Manually map the DB object to the Pydantic schema
+    return {
+        "user": schemas.UserRead.model_validate(current_user), 
+        "listings": user_listings,
+        "history": history
+    }
+
 @router.put("/update-phone")
 async def update_phone_number(
     new_phone: str, # أو استخدم Schema

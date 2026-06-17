@@ -5,9 +5,15 @@ from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Enu
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import enum
+from typing import TYPE_CHECKING
 
+if TYPE_CHECKING:
+    from app.schemas import ListingResponse, TransactionResponse
+    
 from app.database import Base
 from app.schemas import ListingResponse, TransactionResponse
+
+
 # تحديد نوع العملة المحلية
 class FiatCurrency(str, enum.Enum):
     SYP = "SYP"
