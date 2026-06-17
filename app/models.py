@@ -49,7 +49,8 @@ class Listing(Base):
     fiat_currency = Column(Enum(FiatCurrency), default=FiatCurrency.SYP)
     shamcash_account = Column(String, nullable=False)
     is_active = Column(Boolean, default=True)
-    
+    type = Column(String, nullable=False, default='sell') # 'buy' or 'sell'
+    is_verified = Column(Boolean, default=False)
     # العلاقات
     seller = relationship("User", back_populates="listings")
     transactions = relationship("Transaction", back_populates="listing")

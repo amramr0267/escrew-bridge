@@ -20,3 +20,25 @@ async def update_phone_number(
     current_user.phone_number = new_phone
     db.commit()
     return {"message": "تم تحديث رقم الهاتف بنجاح."}
+
+@router.get("/me/full-data")
+async def get_user_full_data(current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    # 1. Stats
+    trades = db.query(models.Transaction).filter(
+        ((models.Transaction.buyer_id == current_user.id) | (models.Transaction.seller_id == current_user.id)),
+        models.Transaction.status == 'completed'
+    ).all()
+    
+    # 2. My Listings (Active offers created by me)
+    my_listings = db.query(models.Listing).filter(models.Listing.seller_id == current_user.id).all()
+    
+    # 3. History (All trades involving user)
+    my_history = db.query(models.Transaction).filter(
+        (models.Transaction.buyer_id == current_user.id) | (models.Transaction.seller_id == current_user.id)
+    ).order_by(models.Transaction.created_at.desc()).all()
+    
+    return {
+        "stats": {"completed_trades": len(trades), "total_volume": sum([t.locked_usdt_amount for t in trades])},
+        "my_listings": my_listings,
+        "history": my_history
+    }

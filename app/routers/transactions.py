@@ -39,13 +39,15 @@ async def create_p2p_listing(
 
     new_listing = models.Listing(
         seller_id=current_user.id,
+        type=listing_in.type,  # 🎯 Mapping the new field        
         total_amount_usdt=listing_in.total_amount_usdt,
         remaining_amount_usdt=listing_in.total_amount_usdt, # يبدأ الرصيد كاملاً
         min_amount_usdt=listing_in.min_amount_usdt,
         exchange_rate=listing_in.exchange_rate,
         fiat_currency=listing_in.fiat_currency,
         shamcash_account=current_user.shamcash_number, # حقن تلقائي
-        is_active=True
+        is_active=True,
+        is_verified=current_user.is_verified # Assuming user model has this
     )
     
     try:

@@ -40,6 +40,7 @@ class ListingCreate(BaseModel):
     min_amount_usdt: float = Field(..., gt=0)
     exchange_rate: float = Field(..., gt=0)
     fiat_currency: str
+    type: str  # 'buy' or 'sell'
 
 class ListingResponse(BaseModel):
     id: int
@@ -51,6 +52,8 @@ class ListingResponse(BaseModel):
     fiat_currency: str
     shamcash_account: str
     is_active: bool
+    type: str  # 'buy' or 'sell'
+    is_verified: bool
     seller_info: Optional[UserBasicResponse] = None
     class Config:
         from_attributes = True
