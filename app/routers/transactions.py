@@ -284,30 +284,27 @@ async def raise_transaction_dispute(
         db.rollback()
         raise HTTPException(status_code=500, detail=f"خطأ أثناء فتح النزاع الإداري: {str(e)}")
     
-@router.delete("/{transaction_id}")
-async def delete_transaction(
-    transaction_id: int, 
+@router.delete("/{listing_id}")
+async def delete_listing(
+    listing_id: int, 
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    # 1. جلب الصفقة
-    transaction = db.query(models.Transaction).filter(models.Transaction.id == transaction_id).first()
-    if not transaction:
-        raise HTTPException(status_code=404, detail="الصفقة غير موجودة.")
+    # Fetch the listing
+    listing = db.query(models.Listing).filter(models.Listing.id == listing_id).first()
     
-    # 2. التحقق من الصلاحية (أن يكون هو المشتري أو البائع)
-    if transaction.buyer_id != current_user.id and transaction.seller_id != current_user.id:
-        raise HTTPException(status_code=403, detail="لا تملك صلاحية إلغاء هذه الصفقة.")
+    if not listing:
+        raise HTTPException(status_code=404, detail="العرض غير موجود.")
     
-    # 3. شرط الإلغاء: يجب أن تكون في حالة انتظار
-    if transaction.status != "pending":
-        raise HTTPException(status_code=400, detail="لا يمكن حذف صفقة غير معلقة.")
+    # Security check: ensure the user is the owner
+    if listing.seller_id != current_user.id:
+        raise HTTPException(status_code=403, detail="لا تملك صلاحية حذف هذا العرض.")
     
-    # 4. تنفيذ الحذف
-    db.delete(transaction)
+    # Delete the listing
+    db.delete(listing)
     db.commit()
     
-    return {"message": "تم إلغاء الصفقة وحذفها بنجاح."}
+    return {"message": "تم حذف العرض بنجاح."}
 
 # In routers/transactions.py
 @router.get("/my-history", response_model=List[schemas.TransactionResponse])
@@ -322,3 +319,16 @@ async def get_my_history(
     ).order_by(models.Transaction.created_at.desc()).all()
     
     return history
+
+@router.post("/cleanup-expired")
+async def cleanup_expired_transactions(db: Session = Depends(get_db)):
+    expiry_threshold = datetime.utcnow() - timedelta(hours=24)
+    
+    # Delete transactions older than 24h that are still 'pending'
+    expired_txs = db.query(models.Transaction).filter(
+        models.Transaction.status == "pending",
+        models.Transaction.created_at < expiry_threshold
+    ).delete()
+    
+    db.commit()
+    return {"message": f"تم حذف {expired_txs} صفقة منتهية الصلاحية."}
