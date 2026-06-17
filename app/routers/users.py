@@ -45,36 +45,14 @@ async def update_phone_number(
     db.commit()
     return {"message": "تم تحديث رقم الهاتف بنجاح."}
 
-@router.get("/me/full-data", response_model=schemas.UserFullProfile)
-async def get_user_full_profile(
+@router.get("/me/listings", response_model=List[schemas.ListingResponse])
+async def get_my_listings(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    # 1. Get all active listings for the user
-    user_listings = db.query(models.Listing).filter(models.Listing.seller_id == current_user.id).all()
+    # Fetch all listings where the seller_id matches the current_user's id
+    listings = db.query(models.Listing).filter(
+        models.Listing.seller_id == current_user.id
+    ).order_by(models.Listing.id.desc()).all()
     
-    # 2. Get history: transactions where current user is EITHER buyer OR seller
-    history = db.query(models.Transaction).filter(
-        (models.Transaction.buyer_id == current_user.id) | 
-        (models.Transaction.seller_id == current_user.id)
-    ).order_by(models.Transaction.created_at.desc()).all()
-    
-    return {
-        "user": current_user,
-        "listings": user_listings,
-        "history": history
-    }
-
-# In routers/transactions.py
-@router.get("/my-history", response_model=List[schemas.TransactionResponse])
-async def get_my_history(
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user)
-):
-    # This fetches all transactions where the user was either the buyer or the seller
-    history = db.query(models.Transaction).filter(
-        (models.Transaction.buyer_id == current_user.id) | 
-        (models.Transaction.seller_id == current_user.id)
-    ).order_by(models.Transaction.created_at.desc()).all()
-    
-    return history
+    return listings

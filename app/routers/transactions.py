@@ -11,10 +11,7 @@ from decimal import Decimal
 import math  
 from app.routers.notifications import create_notification
 
-router = APIRouter(
-    prefix="/api/transactions",
-    tags=["إدارة عمليات الـ P2P والضمان"]
-)
+router = APIRouter(prefix="", tags=["Transactions"]) 
 
 # 1️⃣ البائع ينشئ عرض بيع USDT في السوق (Listing)
 @router.post("/create", response_model=schemas.ListingResponse, status_code=status.HTTP_201_CREATED)
@@ -311,3 +308,17 @@ async def delete_transaction(
     db.commit()
     
     return {"message": "تم إلغاء الصفقة وحذفها بنجاح."}
+
+# In routers/transactions.py
+@router.get("/my-history", response_model=List[schemas.TransactionResponse])
+async def get_my_history(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    # This fetches all transactions where the user was either the buyer or the seller
+    history = db.query(models.Transaction).filter(
+        (models.Transaction.buyer_id == current_user.id) | 
+        (models.Transaction.seller_id == current_user.id)
+    ).order_by(models.Transaction.created_at.desc()).all()
+    
+    return history

@@ -27,8 +27,7 @@ app.add_middleware(
 
 # ربط الـ Routers مرة واحدة فقط
 app.include_router(auth.router)
-app.include_router(transactions.router)
-app.include_router(admin.router)
+app.include_router(transactions.router, prefix="/api/transactions", tags=["Transactions"])app.include_router(admin.router)
 app.include_router(users.router)
 app.include_router(notifications.router)
 
