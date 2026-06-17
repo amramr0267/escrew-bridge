@@ -7,8 +7,7 @@ from datetime import datetime
 import enum
 
 from app.database import Base
-from backend.app.schemas import ListingResponse, TransactionResponse
-
+from app.schemas import ListingResponse, TransactionResponse
 # تحديد نوع العملة المحلية
 class FiatCurrency(str, enum.Enum):
     SYP = "SYP"
