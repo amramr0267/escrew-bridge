@@ -1,6 +1,8 @@
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import List, Optional
 from datetime import datetime
+
+from backend.app.models import User
 
 # ==========================================
 # 1️⃣ نماذج المستخدمين (Users)
@@ -106,3 +108,12 @@ class Token(BaseModel):
     access_token: str
     token_type: str
     role: str
+
+
+class UserFullProfile(BaseModel):
+    user: User # Use the Pydantic model, not models.User
+    listings: List[ListingResponse]
+    history: List[TransactionResponse]
+
+    class Config:
+        from_attributes = True # This tells Pydantic to read from SQLAlchemy objects
