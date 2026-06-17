@@ -5,13 +5,7 @@ from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Enu
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import enum
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from app.schemas import ListingResponse, TransactionResponse
-    
 from app.database import Base
-from app.schemas import ListingResponse, TransactionResponse
 
 
 # تحديد نوع العملة المحلية
@@ -99,13 +93,7 @@ class TransactionResponse(BaseModel):
     created_at: datetime    
     # We add a computed field in the frontend or backend to show "Buy" or "Sell"
 
-class UserFullProfile(BaseModel):
-    user: User # Assuming you have a basic User schema
-    listings: List[ListingResponse]
-    history: List[TransactionResponse]
 
-    class Config:
-        from_attributes = True
 
 class GlobalConfig(Base):
     __tablename__ = "global_config"
