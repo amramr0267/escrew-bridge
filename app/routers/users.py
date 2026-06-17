@@ -1,3 +1,5 @@
+from typing import List
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from app.database import get_db
@@ -40,3 +42,17 @@ async def get_user_full_profile(
         "listings": user_listings,
         "history": history
     }
+
+# In routers/transactions.py
+@router.get("/my-history", response_model=List[schemas.TransactionResponse])
+async def get_my_history(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    # This fetches all transactions where the user was either the buyer or the seller
+    history = db.query(models.Transaction).filter(
+        (models.Transaction.buyer_id == current_user.id) | 
+        (models.Transaction.seller_id == current_user.id)
+    ).order_by(models.Transaction.created_at.desc()).all()
+    
+    return history
