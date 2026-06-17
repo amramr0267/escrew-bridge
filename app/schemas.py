@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 from typing import List, Optional
 from datetime import datetime
 
-from backend.app.models import User
+from app.models import User
 
 # ==========================================
 # 1️⃣ نماذج المستخدمين (Users)
