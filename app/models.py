@@ -34,14 +34,19 @@ class User(Base):
     transactions_as_seller = relationship("Transaction", foreign_keys="[Transaction.seller_id]", back_populates="seller")
 
 
+# app/models.py
+
+# app/models.py
+
 class VerificationRequest(Base):
     __tablename__ = "verification_requests"
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
-    id_card_image_path = Column(String, nullable=False) # مسار الصورة على السيرفر
-    status = Column(String, default="pending")          # 'pending', 'approved', 'rejected'
+    id_front_path = Column(String, nullable=False)    # Front of ID
+    id_back_path = Column(String, nullable=False)     # Back of ID
+    selfie_with_id_path = Column(String, nullable=False) # Selfie holding ID
+    status = Column(String, default="pending")        # 'pending', 'approved', 'rejected'
     created_at = Column(DateTime, default=datetime.utcnow)
-
 
 class Listing(Base):
     __tablename__ = "listings"

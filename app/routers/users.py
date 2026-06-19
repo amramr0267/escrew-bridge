@@ -1,6 +1,8 @@
+import shutil
 from typing import List
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, UploadFile
+from fastapi.params import File, Path
 from sqlalchemy.orm import Session
 from app.database import get_db
 import app.models as models
@@ -56,3 +58,40 @@ async def get_my_listings(
     ).order_by(models.Listing.id.desc()).all()
     
     return listings
+
+# app/routers/users.py
+
+@router.post("/verify-request")
+async def request_verification(
+    id_front: UploadFile = File(...),
+    id_back: UploadFile = File(...),
+    selfie_with_id: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    # 1. Define where to save (ensure this folder exists on your server)
+    UPLOAD_DIR = Path("app/uploads/verification")
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+    def save_file(file: UploadFile) -> str:
+        file_path = UPLOAD_DIR / f"{current_user.id}_{file.filename}"
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        return str(file_path)
+
+    # 2. Save the files and get their paths
+    path_to_front = save_file(id_front)
+    path_to_back = save_file(id_back)
+    path_to_selfie = save_file(selfie_with_id)
+
+    # 3. Now these variables are defined and ready for the database
+    new_request = models.VerificationRequest(
+        user_id=current_user.id,
+        id_front_path=path_to_front,
+        id_back_path=path_to_back,
+        selfie_with_id_path=path_to_selfie
+    )
+    
+    db.add(new_request)
+    db.commit()
+    return {"message": "تم إرسال طلب التوثيق بنجاح."}
