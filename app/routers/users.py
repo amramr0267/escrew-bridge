@@ -69,13 +69,12 @@ async def request_verification(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    # Use an absolute path or a path relative to the project root
-    # Vercel is read-only, so /tmp is the only place you can write
-    UPLOAD_DIR = Path("/tmp/verification") 
+    # This path is safe on Vercel/Linux
+    UPLOAD_DIR = Path("/tmp/verification")
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
+    # Save logic...
     def save_file(file: UploadFile) -> str:
-        # Use a unique name
         file_path = UPLOAD_DIR / f"{current_user.id}_{file.filename}"
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
