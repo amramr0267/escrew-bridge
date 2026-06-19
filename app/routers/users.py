@@ -69,22 +69,22 @@ async def request_verification(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    # 1. Define where to save (ensure this folder exists on your server)
-    UPLOAD_DIR = Path("app/uploads/verification")
+    # Use an absolute path or a path relative to the project root
+    # Vercel is read-only, so /tmp is the only place you can write
+    UPLOAD_DIR = Path("/tmp/verification") 
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
     def save_file(file: UploadFile) -> str:
+        # Use a unique name
         file_path = UPLOAD_DIR / f"{current_user.id}_{file.filename}"
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         return str(file_path)
 
-    # 2. Save the files and get their paths
     path_to_front = save_file(id_front)
     path_to_back = save_file(id_back)
     path_to_selfie = save_file(selfie_with_id)
 
-    # 3. Now these variables are defined and ready for the database
     new_request = models.VerificationRequest(
         user_id=current_user.id,
         id_front_path=path_to_front,
