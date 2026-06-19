@@ -1,9 +1,10 @@
 import shutil
 from typing import List
+from pathlib import Path  # Keep this one
 
-from fastapi import APIRouter, Depends, UploadFile
-from fastapi.params import File, Path
+from fastapi import APIRouter, Depends, UploadFile, File # Import File here
 from sqlalchemy.orm import Session
+# REMOVE 'Path' from the fastapi.params import line above if it exists
 from app.database import get_db
 import app.models as models
 import app.schemas as schemas
