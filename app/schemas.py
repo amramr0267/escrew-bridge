@@ -85,6 +85,7 @@ class TransactionResponse(BaseModel):
     seller_id: int
     locked_usdt_amount: float
     fiat_amount_to_pay: float
+    buyer_wallet_address: str  # أضف هذا الحقل هنا
     status: str
     txid: Optional[str]
     created_at: datetime

@@ -283,25 +283,6 @@ async def raise_transaction_dispute(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"خطأ أثناء فتح النزاع الإداري: {str(e)}")
-    
-@router.delete("/listings/{listing_id}") # Ensure this path matches your existing structure
-async def delete_listing(
-    listing_id: int, 
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user)
-):
-    listing = db.query(models.Listing).filter(models.Listing.id == listing_id).first()
-    
-    if not listing:
-        raise HTTPException(status_code=404, detail="العرض غير موجود.")
-    
-    if listing.seller_id != current_user.id:
-        raise HTTPException(status_code=403, detail="لا تملك صلاحية حذف هذا العرض.")
-    
-    db.delete(listing)
-    db.commit()
-    
-    return {"message": "تم حذف العرض بنجاح."}
 
 # In routers/transactions.py
 @router.get("/my-history", response_model=List[schemas.TransactionResponse])

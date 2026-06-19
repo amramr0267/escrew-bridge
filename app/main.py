@@ -26,12 +26,13 @@ app.add_middleware(
 )
 
 # ربط الـ Routers مرة واحدة فقط
-app.include_router(auth.router)
-app.include_router(transactions.router, prefix="/api/transactions", tags=["Transactions"])
-app.include_router(admin.router)
-app.include_router(users.router)
-app.include_router(listings.router, prefix="/api/listings", tags=["listings"])
-app.include_router(notifications.router)
+# main.py
+app.include_router(auth.router, prefix="/api/auth") # أضفت الـ prefix هنا ليتوافق مع security.py
+app.include_router(transactions.router, prefix="/api/transactions")
+app.include_router(admin.router, prefix="/api/admin")
+app.include_router(users.router, prefix="/api/users")
+app.include_router(listings.router, prefix="/api/listings")
+app.include_router(notifications.router, prefix="/api/notifications")
 
 
 @app.get("/", tags=["الفحص العام"])

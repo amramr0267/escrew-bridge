@@ -85,13 +85,7 @@ class Transaction(Base):
     completed_at = Column(DateTime, nullable=True)        # تاريخ الإتمام
     release_txid = Column(String, nullable=True)          # معرف التحويل عند الإفراج
 
-class TransactionResponse(BaseModel):
-    id: int
-    locked_usdt_amount: float
-    fiat_amount_to_pay: float
-    status: str
-    created_at: datetime    
-    # We add a computed field in the frontend or backend to show "Buy" or "Sell"
+
 
 
 
