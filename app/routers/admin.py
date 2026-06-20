@@ -244,7 +244,7 @@ async def get_user_details_for_admin(
     return user # هنا الـ API سيعيد الـ AdminUserResponse التي تحتوي على الرقم
 
 # Fetch all pending verification requests
-@router.get("/admin/verification-requests")
+@router.get("/verification-requests")
 async def get_verification_requests(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
@@ -254,7 +254,7 @@ async def get_verification_requests(
     return db.query(models.VerificationRequest).filter(models.VerificationRequest.status == "pending").all()
 
 # Approve a request
-@router.post("/admin/approve-verification/{user_id}")
+@router.post("/approve-verification/{user_id}")
 async def approve_verification(
     user_id: int,
     db: Session = Depends(get_db),
