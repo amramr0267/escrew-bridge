@@ -93,5 +93,6 @@ async def request_verification(
     )
     
     db.add(new_request)
+    current_user.verification_status = "pending"
     db.commit()
     return {"message": "تم إرسال طلب التوثيق بنجاح."}
