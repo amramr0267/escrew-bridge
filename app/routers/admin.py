@@ -242,3 +242,29 @@ async def get_user_details_for_admin(
         raise HTTPException(status_code=404, detail="المستخدم غير موجود.")
         
     return user # هنا الـ API سيعيد الـ AdminUserResponse التي تحتوي على الرقم
+
+# Fetch all pending verification requests
+@router.get("/admin/verification-requests")
+async def get_verification_requests(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Not authorized")
+    return db.query(models.VerificationRequest).filter(models.VerificationRequest.status == "pending").all()
+
+# Approve a request
+@router.post("/admin/approve-verification/{user_id}")
+async def approve_verification(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    user.verification_status = "approved"
+    user.is_verified = True
+    db.commit()
+    return {"message": "User verified successfully"}
