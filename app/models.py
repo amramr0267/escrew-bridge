@@ -80,8 +80,7 @@ class Transaction(Base):
     status = Column(String, default="pending")
     txid = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
-    expires_at = Column(DateTime, nullable=False)
-    
+    expires_at: datetime  # 🎯 تأكد من إضافته هنا    
     # العلاقات
     listing = relationship("Listing", back_populates="transactions")
     buyer = relationship("User", foreign_keys=[buyer_id], back_populates="transactions_as_buyer")
