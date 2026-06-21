@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session, joinedload
 from typing import List
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from app.database import get_db
 import app.models as models
 import app.schemas as schemas
@@ -95,7 +95,7 @@ async def match_buyer_to_listing(
     # 🎯 جلب المؤقت الإداري العام (مثلاً 20 دقيقة)
     config = db.query(models.GlobalConfig).first()
     timeout = config.transaction_timeout_minutes if config else 20
-    expiry_time = datetime.utcnow() + timedelta(minutes=timeout)
+    expiry_time = datetime.now(timezone.utc) + timedelta(minutes=timeout)
 
     # 🎯 حساب القيمة المحلية المطلوبة بناءً على سعر الصرف
     fiat_to_pay = float(order.buy_amount_usdt) * listing.exchange_rate
