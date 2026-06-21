@@ -308,3 +308,32 @@ async def cleanup_expired_transactions(db: Session = Depends(get_db)):
     
     db.commit()
     return {"message": f"تم حذف {expired_txs} صفقة منتهية الصلاحية."}
+
+
+@router.post("/cancel-expired/{transaction_id}")
+async def cancel_expired_transaction(
+    transaction_id: int, 
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    tx = db.query(models.Transaction).filter(
+        models.Transaction.id == transaction_id,
+        models.Transaction.status == "pending_deposit"
+    ).first()
+
+    if not tx:
+        raise HTTPException(status_code=404, detail="الصفقة غير موجودة أو لا يمكن إلغاؤها.")
+
+    # التحقق من أن الوقت قد انتهى فعلاً في السيرفر
+    if datetime.utcnow() < tx.expires_at:
+        raise HTTPException(status_code=400, detail="لا يزال هناك وقت متبقي للصفقة.")
+
+    # إلغاء الصفقة وإعادة تفعيل العرض (Listing) إذا كان متاحاً
+    tx.status = "cancelled"
+    listing = db.query(models.Listing).filter(models.Listing.id == tx.listing_id).first()
+    if listing:
+        listing.remaining_amount_usdt += tx.locked_usdt_amount
+        listing.is_active = True
+        
+    db.commit()
+    return {"message": "تم إلغاء الصفقة بنجاح بسبب انتهاء الوقت."}
