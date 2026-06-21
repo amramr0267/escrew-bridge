@@ -172,36 +172,25 @@ def get_transaction_by_id(
 
 
 # 6️⃣ إرفاق رمز تحويل البلوكشين أو إيصال الحوالة المحلية
-@router.post("/submit-txid", response_model=schemas.TransactionResponse)
-async def submit_txid(
-    payload: schemas.TxIDSubmit, 
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user)
-):
-    transaction = db.query(models.Transaction).filter(models.Transaction.id == payload.transaction_id).first()
+@router.post("/submit-txid")
+async def submit_txid(payload: schemas.TxIDSubmit, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
+    tx = db.query(models.Transaction).filter(models.Transaction.id == payload.transaction_id).first()
     
-    if not transaction:
-        raise HTTPException(status_code=404, detail="المعاملة غير موجودة.")
+    # Validation
+    fee = calculate_fee(tx.locked_usdt_amount)
+    required_amount = tx.locked_usdt_amount + fee
+    
+    # 🎯 Verify on Binance (or your system wallet)
+    is_valid = await verify_txid_on_binance(payload.txid, required_amount)
+    if not is_valid:
+        raise HTTPException(status_code=400, detail="المبلغ المحول غير مطابق أو الـ TXID غير صالح.")
         
-    if current_user.id != transaction.buyer_id and current_user.id != transaction.seller_id:
-        raise HTTPException(status_code=403, detail="أنت لست طرفاً في هذه المعاملة.")
-
-    # منطق التحقق: البائع يثبت التحويل المشفر، والمشتري يثبت التحويل النقدي
-    if current_user.id == transaction.seller_id:
-        is_valid = await verify_txid_on_binance(payload.txid, float(transaction.locked_usdt_amount))
-        if is_valid:
-            transaction.txid = payload.txid
-            transaction.status = "crypto_confirmed"
-        else:
-            raise HTTPException(status_code=400, detail="فشل التحقق الرقمي عبر Binance.")
-    else:
-        # حالة إثبات دفع المشتري
-        transaction.txid = payload.txid
-        transaction.status = "payment_proof_submitted"
-        
+    tx.txid = payload.txid
+    tx.status = "crypto_received" # Updated status
+    tx.buyer_fee = fee
     db.commit()
-    db.refresh(transaction)
-    return transaction
+    return tx
+
 
 @router.post("/release-crypto/{transaction_id}")
 async def release_crypto_to_buyer(
@@ -252,6 +241,10 @@ async def release_crypto_to_buyer(
         db.rollback() # تراجع عن أي تغيير في القاعدة إذا فشل التحويل
         raise HTTPException(status_code=500, detail=f"فشل الإفراج التلقائي: {str(e)}")
 
+
+def calculate_fee(amount: float) -> float:
+    # 0-500 = 0.5, 501-1000 = 1.0, etc.
+    return (math.ceil(amount / 500)) * 0.5
 
 # 8️⃣ زر المشتري لفتح نزاع/اعتراض رسمي في حال مماطلة البائع
 @router.post("/raise-dispute/{transaction_id}", response_model=schemas.TransactionResponse)
