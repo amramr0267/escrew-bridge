@@ -78,6 +78,15 @@ class TxIDSubmit(BaseModel):
     transaction_id: int
     txid: str = Field(..., description="رقم الحوالة المحلية أو هاش البلوكشين")
 
+class UserBrief(BaseModel):
+    id: int
+    username: str
+    is_verified: bool  # Make sure this is in your User model
+
+    class Config:
+        from_attributes = True
+
+        
 class TransactionResponse(BaseModel):
     id: int
     listing_id: int
@@ -93,7 +102,8 @@ class TransactionResponse(BaseModel):
     # 🎯 إضافة حقول الرسوم هنا
     seller_fee: float 
     buyer_fee: float 
-
+    buyer: Optional[UserBrief]
+    seller: UserBrief
     class Config:
         from_attributes = True
 
@@ -126,3 +136,5 @@ class UserFullProfile(BaseModel):
 
     class Config:
         from_attributes = True
+
+

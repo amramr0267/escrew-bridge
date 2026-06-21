@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List
 from datetime import datetime, timedelta
 from app.database import get_db
@@ -161,7 +161,12 @@ def get_transaction_by_id(
     db: Session = Depends(get_db), 
     current_user: models.User = Depends(get_current_user)
 ):
-    tx = db.query(models.Transaction).filter(models.Transaction.id == id).first()
+    # Use joinedload to include user data in the query
+    tx = db.query(models.Transaction).options(
+        joinedload(models.Transaction.buyer),
+        joinedload(models.Transaction.seller)
+    ).filter(models.Transaction.id == id).first()
+    
     if not tx:
         raise HTTPException(status_code=404, detail="عذراً، هذه الصفقة غير موجودة في النظام.")
     
