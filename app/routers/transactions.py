@@ -161,17 +161,26 @@ def get_transaction_by_id(
     db: Session = Depends(get_db), 
     current_user: models.User = Depends(get_current_user)
 ):
-    # Use joinedload to include user data in the query
+    # 1. جلب الصفقة مع العلاقات
     tx = db.query(models.Transaction).options(
         joinedload(models.Transaction.buyer),
-        joinedload(models.Transaction.seller)
+        joinedload(models.Transaction.seller),
+        joinedload(models.Transaction.listing) # ضروري لجلب listing.type
     ).filter(models.Transaction.id == id).first()
     
     if not tx:
         raise HTTPException(status_code=404, detail="عذراً، هذه الصفقة غير موجودة في النظام.")
     
+    # 2. التحقق من الصلاحيات
     if current_user.role != "admin" and current_user.id != tx.seller_id and current_user.id != tx.buyer_id:
         raise HTTPException(status_code=403, detail="غير مصرح لك بدخول غرفة هذه الصفقة.")
+    
+    # 3. جلب الإعدادات العامة (GlobalConfig)
+    config = db.query(models.GlobalConfig).first()
+    
+    # 4. حقن البيانات في كائن الصفقة ليراها الـ Schema
+    tx.system_wallet_address = config.system_wallet_address if config else "غير متوفر"
+    tx.supported_network = config.supported_network if config else "غير محدد"
         
     return tx
 

@@ -104,6 +104,9 @@ class TransactionResponse(BaseModel):
     buyer_fee: float 
     buyer: Optional[UserBrief]
     seller: UserBrief
+
+    system_wallet_address: Optional[str] = None
+    supported_network: Optional[str] = None
     class Config:
         from_attributes = True
 

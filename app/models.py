@@ -97,7 +97,11 @@ class Transaction(Base):
 class GlobalConfig(Base):
     __tablename__ = "global_config"
     id = Column(Integer, primary_key=True, index=True)
-    transaction_timeout_minutes = Column(Integer, default=20) # 🎯 المؤقت الإداري
+    transaction_timeout_minutes = Column(Integer, default=20)
+    
+    # 🎯 أضف هذه الحقول الجديدة
+    system_wallet_address = Column(String, nullable=True)
+    supported_network = Column(String, nullable=True)
 
 class PlatformRevenue(Base):
     __tablename__ = "platform_revenue"
