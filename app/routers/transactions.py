@@ -109,6 +109,7 @@ async def match_buyer_to_listing(
         fiat_amount_to_pay=fiat_to_pay,
         buyer_wallet_address = getattr(order, 'buyer_wallet_address', 'N/A'),
         expires_at=expiry_time,
+        system_wallet_address="TQ8uA... (ضع عنوان محفظتك هنا أو اجلبه من إعدادات النظام)",
         status="pending_deposit"
     )
         
@@ -164,7 +165,8 @@ def get_transaction_by_id(
     # Use joinedload to include user data in the query
     tx = db.query(models.Transaction).options(
         joinedload(models.Transaction.buyer),
-        joinedload(models.Transaction.seller)
+        joinedload(models.Transaction.seller),
+        joinedload(models.Transaction.listing) # 🎯 تأكد من إضافة هذا السطر
     ).filter(models.Transaction.id == id).first()
     
     if not tx:
