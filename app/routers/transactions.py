@@ -109,7 +109,6 @@ async def match_buyer_to_listing(
         fiat_amount_to_pay=fiat_to_pay,
         buyer_wallet_address = getattr(order, 'buyer_wallet_address', 'N/A'),
         expires_at=expiry_time,
-        system_wallet_address="TQ8uA... (ضع عنوان محفظتك هنا أو اجلبه من إعدادات النظام)",
         status="pending_deposit"
     )
         
