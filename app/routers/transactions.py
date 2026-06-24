@@ -165,8 +165,7 @@ def get_transaction_by_id(
     # Use joinedload to include user data in the query
     tx = db.query(models.Transaction).options(
         joinedload(models.Transaction.buyer),
-        joinedload(models.Transaction.seller),
-        joinedload(models.Transaction.listing) # 🎯 تأكد من إضافة هذا السطر
+        joinedload(models.Transaction.seller)
     ).filter(models.Transaction.id == id).first()
     
     if not tx:
