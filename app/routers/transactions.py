@@ -191,7 +191,8 @@ def get_transaction_by_id(
     # 5. إذا أردت إظهار الصافي بعد خصم الرسوم في الواجهة:
     # يمكنك إرسال حقل إضافي يسمى net_usdt_after_fee
     tx.net_usdt_after_fee = tx.locked_usdt_amount - tx.fee_amount
-
+# اجبر العملة على أن تكون نصاً صريحاً قبل الإرجاع
+    tx.fiat_currency_display = str(tx.listing.fiat_currency.value) if hasattr(tx.listing.fiat_currency, 'value') else str(tx.listing.fiat_currency)
 
     # 3. جلب الإعدادات العامة (GlobalConfig)
     config = db.query(models.GlobalConfig).first()

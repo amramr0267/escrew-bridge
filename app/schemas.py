@@ -109,7 +109,7 @@ class TransactionResponse(BaseModel):
     buyer_fee: Optional[float] = None
     fee_amount: Optional[float] = None 
     seller_net_amount: Optional[float] = None
-    
+    fiat_currency_display: Optional[str] = None
     # بيانات محفظة النظام
     system_wallet_address: Optional[str] = None
     supported_network: Optional[str] = None
@@ -117,7 +117,7 @@ class TransactionResponse(BaseModel):
     class Config:
         from_attributes = True
 
-        
+
 
 class AdminUserResponse(UserResponse):
     phone_number: Optional[str] = None # هذا يظهر فقط للأدمن
