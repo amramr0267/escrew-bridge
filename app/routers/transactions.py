@@ -185,6 +185,7 @@ def get_transaction_by_id(
     return tx
 
 # منطق الحساب في الباك إند
+# منطق الحساب في الباك إند
 def calculate_transaction_amounts(locked_usdt, rate, platform_fee_percent):
     # المبلغ الإجمالي بالعملة المحلية
     total_fiat = locked_usdt * rate
@@ -200,7 +201,6 @@ def calculate_transaction_amounts(locked_usdt, rate, platform_fee_percent):
         "seller_net_amount": net_fiat_for_seller, # ما يستلمه البائع
         "fee_amount": fee_amount              # ربح المنصة
     }
-
 # 6️⃣ إرفاق رمز تحويل البلوكشين أو إيصال الحوالة المحلية
 @router.post("/submit-txid")
 async def submit_txid(payload: schemas.TxIDSubmit, db: Session = Depends(get_db), current_user = Depends(get_current_user)):
