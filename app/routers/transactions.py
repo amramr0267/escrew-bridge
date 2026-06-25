@@ -178,13 +178,10 @@ def get_transaction_by_id(
     fee_amount = (tx.locked_usdt_amount / 500) * 0.5
     tx.fee_amount = round(fee_amount, 2)
     
-    # 2. احسب صافي المبلغ للبائع
-    # نفترض أن price_per_unit هو السعر المحدد في العرض
-    price_per_unit = tx.listing.price_per_unit if tx.listing else 0
-    tx.seller_net_amount = round((tx.locked_usdt_amount - tx.fee_amount) * price_per_unit, 2)
-    
-    # 3. احسب إجمالي المبلغ المطلوب من المشتري (إذا كان السعر شاملاً الرسوم)
-    tx.fiat_amount_to_pay = round(tx.locked_usdt_amount * price_per_unit, 2)
+    # الحساب باستخدام exchange_rate من جدول listings
+    rate = tx.listing.exchange_rate if tx.listing else 0
+    tx.seller_net_amount = round((tx.locked_usdt_amount - tx.fee_amount) * rate, 2)
+    tx.fiat_amount_to_pay = round(tx.locked_usdt_amount * rate, 2)
 
 
     # 3. جلب الإعدادات العامة (GlobalConfig)
