@@ -178,10 +178,19 @@ def get_transaction_by_id(
     fee_amount = (tx.locked_usdt_amount / 500) * 0.5
     tx.fee_amount = round(fee_amount, 2)
     
-    # الحساب باستخدام exchange_rate من جدول listings
+    # 2. سعر الصرف
     rate = tx.listing.exchange_rate if tx.listing else 0
-    tx.seller_net_amount = round((tx.locked_usdt_amount - tx.fee_amount) * rate, 2)
+    
+    # 3. المشتري يدفع مقابل الـ 1000 USDT كاملة
     tx.fiat_amount_to_pay = round(tx.locked_usdt_amount * rate, 2)
+    
+    # 4. البائع يستلم المبلغ المحلي كاملاً مقابل الـ 1000 
+    # (هنا لا نخصم الرسوم من الـ rate، نترك الخصم للمحفظة)
+    tx.seller_net_amount = round(tx.locked_usdt_amount * rate, 2)
+    
+    # 5. إذا أردت إظهار الصافي بعد خصم الرسوم في الواجهة:
+    # يمكنك إرسال حقل إضافي يسمى net_usdt_after_fee
+    tx.net_usdt_after_fee = tx.locked_usdt_amount - tx.fee_amount
 
 
     # 3. جلب الإعدادات العامة (GlobalConfig)
