@@ -183,7 +183,9 @@ def get_transaction_by_id(
     if current_user.role != "admin" and current_user.id != tx.seller_id and current_user.id != tx.buyer_id:
         raise HTTPException(status_code=403, detail="غير مصرح لك بدخول غرفة هذه الصفقة.")
     
-    fee_amount = (tx.locked_usdt_amount / 500) * 0.5
+    number_of_blocks = math.ceil(tx.locked_usdt_amount / 500)
+    fee_amount = number_of_blocks * 0.5
+
     tx.fee_amount = round(fee_amount, 2)
     
     # 2. سعر الصرف
