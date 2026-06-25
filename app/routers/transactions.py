@@ -100,11 +100,19 @@ async def match_buyer_to_listing(
     # 🎯 حساب القيمة المحلية المطلوبة بناءً على سعر الصرف
     fiat_to_pay = float(order.buy_amount_usdt) * listing.exchange_rate
 
+
+    if listing.type == 'sell':
+        buyer_id = current_user.id
+        seller_id = listing.seller_id
+    else: # listing.type == 'buy'
+        buyer_id = listing.seller_id # صاحب العرض يشتري
+        seller_id = current_user.id  # المستخدم يبيع
+
     # إنشاء الصفقة الحية المستقلة
     new_tx = models.Transaction(
         listing_id=listing.id,
-        buyer_id=current_user.id,
-        seller_id=listing.seller_id,
+        buyer_id=buyer_id,
+        seller_id=seller_id,
         locked_usdt_amount=order.buy_amount_usdt,
         fiat_amount_to_pay=fiat_to_pay,
         buyer_wallet_address = getattr(order, 'buyer_wallet_address', 'N/A'),
