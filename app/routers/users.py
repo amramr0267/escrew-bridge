@@ -1,7 +1,8 @@
+from http.client import HTTPException
 import shutil
 from typing import List
 from pathlib import Path  # Keep this one
-
+import aiofiles # تأكد من تثبيتها: pip install aiofiles
 from fastapi import APIRouter, Depends, UploadFile, File # Import File here
 from sqlalchemy.orm import Session
 # REMOVE 'Path' from the fastapi.params import line above if it exists
@@ -70,29 +71,50 @@ async def request_verification(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    # This path is safe on Vercel/Linux
+    # 1. التحقق من حالة التوثيق الحالية لمنع التكرار
+    if current_user.verification_status == "pending":
+        raise HTTPException(status_code=400, detail="لديك طلب توثيق قيد المراجعة بالفعل.")
+    
+    if current_user.verification_status == "approved":
+        raise HTTPException(status_code=400, detail="حسابك موثق بالفعل.")
+
+    # 2. تحديد المجلد
     UPLOAD_DIR = Path("/tmp/verification")
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Save logic...
-    def save_file(file: UploadFile) -> str:
-        file_path = UPLOAD_DIR / f"{current_user.id}_{file.filename}"
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+    # 3. دالة حفظ الملفات باستخدام async للتعامل الأفضل مع الموارد
+    async def save_file(file: UploadFile) -> str:
+        # تنظيف اسم الملف من أي مسارات غير آمنة
+        filename = f"{current_user.id}_{Path(file.filename).name}"
+        file_path = UPLOAD_DIR / filename
+        
+        async with aiofiles.open(file_path, "wb") as buffer:
+            while content := await file.read(1024 * 1024):  # قراءة 1 ميجابايت في المرة
+                await buffer.write(content)
         return str(file_path)
 
-    path_to_front = save_file(id_front)
-    path_to_back = save_file(id_back)
-    path_to_selfie = save_file(selfie_with_id)
+    # 4. الحفظ
+    try:
+        path_to_front = await save_file(id_front)
+        path_to_back = await save_file(id_back)
+        path_to_selfie = await save_file(selfie_with_id)
 
-    new_request = models.VerificationRequest(
-        user_id=current_user.id,
-        id_front_path=path_to_front,
-        id_back_path=path_to_back,
-        selfie_with_id_path=path_to_selfie
-    )
-    
-    db.add(new_request)
-    current_user.verification_status = "pending"
-    db.commit()
-    return {"message": "تم إرسال طلب التوثيق بنجاح."}
+        # 5. التحديث في قاعدة البيانات
+        new_request = models.VerificationRequest(
+            user_id=current_user.id,
+            id_front_path=path_to_front,
+            id_back_path=path_to_back,
+            selfie_with_id_path=path_to_selfie
+        )
+        
+        current_user.verification_status = "pending"
+        
+        db.add(new_request)
+        db.commit()
+        
+        return {"message": "تم إرسال طلب التوثيق بنجاح، جاري المراجعة."}
+        
+    except Exception as e:
+        # في حال فشل أي عملية حفظ، نقوم بإلغاء التغييرات في قاعدة البيانات
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"حدث خطأ أثناء رفع الملفات: {str(e)}")
