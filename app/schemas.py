@@ -99,7 +99,7 @@ class TransactionResponse(BaseModel):
     txid: Optional[str]
     created_at: datetime
     expires_at: datetime
-    
+    listing: Optional[ListingResponse] # تأكد من تضمينها هنا
     # العلاقات
     buyer: Optional[UserBrief]
     seller: UserBrief
