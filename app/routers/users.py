@@ -2,7 +2,7 @@ from http.client import HTTPException
 import shutil
 from typing import List
 from pathlib import Path  # Keep this one
-import aiofiles # تأكد من تثبيتها: pip install aiofiles
+import aiofiles # type: ignore # تأكد من تثبيتها: pip install aiofiles
 from fastapi import APIRouter, Depends, UploadFile, File # Import File here
 from sqlalchemy.orm import Session
 # REMOVE 'Path' from the fastapi.params import line above if it exists
