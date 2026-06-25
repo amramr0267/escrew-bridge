@@ -94,23 +94,30 @@ class TransactionResponse(BaseModel):
     seller_id: int
     locked_usdt_amount: float
     fiat_amount_to_pay: float
-    buyer_wallet_address: str  # أضف هذا الحقل هنا
+    buyer_wallet_address: str
     status: str
     txid: Optional[str]
     created_at: datetime
     expires_at: datetime
-    # 🎯 إضافة حقول الرسوم هنا
-    seller_fee: float 
-    buyer_fee: float 
+    
+    # العلاقات
     buyer: Optional[UserBrief]
     seller: UserBrief
+    
+    # حقول الرسوم والمالية (مدمجة)
+    seller_fee: Optional[float] = None
+    buyer_fee: Optional[float] = None
+    fee_amount: Optional[float] = None 
     seller_net_amount: Optional[float] = None
-    fee_amount: Optional[float] = None      
-    fee_amount: float
+    
+    # بيانات محفظة النظام
     system_wallet_address: Optional[str] = None
     supported_network: Optional[str] = None
+
     class Config:
         from_attributes = True
+
+        
 
 class AdminUserResponse(UserResponse):
     phone_number: Optional[str] = None # هذا يظهر فقط للأدمن
