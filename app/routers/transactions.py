@@ -184,6 +184,22 @@ def get_transaction_by_id(
         
     return tx
 
+# منطق الحساب في الباك إند
+def calculate_transaction_amounts(locked_usdt, rate, platform_fee_percent):
+    # المبلغ الإجمالي بالعملة المحلية
+    total_fiat = locked_usdt * rate
+    
+    # حساب الرسوم (خصم من المبلغ الرقمي أو المحلي حسب سياستك)
+    fee_amount = locked_usdt * (platform_fee_percent / 100)
+    
+    # الصافي للبائع (بعد خصم الرسوم)
+    net_fiat_for_seller = (locked_usdt - fee_amount) * rate
+    
+    return {
+        "fiat_amount_to_pay": total_fiat,     # ما يدفعه المشتري
+        "seller_net_amount": net_fiat_for_seller, # ما يستلمه البائع
+        "fee_amount": fee_amount              # ربح المنصة
+    }
 
 # 6️⃣ إرفاق رمز تحويل البلوكشين أو إيصال الحوالة المحلية
 @router.post("/submit-txid")

@@ -104,7 +104,9 @@ class TransactionResponse(BaseModel):
     buyer_fee: float 
     buyer: Optional[UserBrief]
     seller: UserBrief
-
+    fiat_amount_to_pay: float
+    seller_net_amount: float # صافي ما يستلمه البائع
+    fee_amount: float
     system_wallet_address: Optional[str] = None
     supported_network: Optional[str] = None
     class Config:
