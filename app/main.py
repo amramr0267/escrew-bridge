@@ -2,9 +2,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine, Base
 # استيراد نظيف ومرة واحدة فقط لكل ملف
-from app.routers import transactions, admin, auth , users, listings
+from app.routers import transactions, admin, auth , users, listings, notifications
 
-from app.routers import notifications # تأكد من المسار الصحيح
+
 
 Base.metadata.create_all(bind=engine)
 
