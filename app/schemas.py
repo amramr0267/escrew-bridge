@@ -19,6 +19,7 @@ class UserResponse(BaseModel):
     email: str
     role: str
     shamcash_number: str
+    verification_status: str  # أضف هذا السطر هنا
 
     class Config:
         from_attributes = True  # ضرورية لتحويل بيانات SQLAlchemy إلى JSON (في Pydantic v1 تُكتب orm_mode = True)
