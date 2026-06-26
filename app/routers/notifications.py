@@ -37,7 +37,7 @@ async def mark_as_read(
     return {"message": "تم تحديث التنبيه"}
 
 
-def create_notification(db: Session, user_id: int, message: str, transaction_id: int = None):
+def send_notification(db: Session, user_id: int, message: str, transaction_id: int = None):
     new_note = models.Notification(
         user_id=user_id,
         message=message,

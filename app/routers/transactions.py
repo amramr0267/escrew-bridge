@@ -9,7 +9,7 @@ from app.services.binance_api import execute_binance_withdrawal, verify_txid_on_
 from app.services.security import get_current_user, log_platform_revenue  
 from decimal import Decimal
 import math  
-from app.routers.notifications import create_notification
+from app.routers.notifications import send_notification
 
 router = APIRouter(prefix="", tags=["Transactions"]) 
 
@@ -123,6 +123,21 @@ async def match_buyer_to_listing(
     db.add(new_tx)
     db.commit()
     db.refresh(new_tx)
+    # 🔔 إرسال تنبيه للبائع (Seller) أن هناك من اشترى منه
+    send_notification(
+        db=db,
+        user_id=seller_id,
+        message=f"لديك صفقة جديدة بقيمة {order.buy_amount_usdt} USDT. يرجى المتابعة.",
+        transaction_id=new_tx.id
+    )
+
+    # 🔔 إرسال تنبيه للمشتري (Buyer) لتأكيد بدء الصفقة
+    send_notification(
+        db=db,
+        user_id=buyer_id,
+        message=f"لقد بدأت صفقة جديدة بقيمة {order.buy_amount_usdt} USDT. يرجى إتمام الدفع.",
+        transaction_id=new_tx.id
+    )
     return new_tx
 
 
@@ -247,6 +262,14 @@ async def submit_txid(payload: schemas.TxIDSubmit, db: Session = Depends(get_db)
     tx.txid = payload.txid
     tx.status = "crypto_received" # Updated status
     tx.buyer_fee = fee
+
+    if  tx.status == "crypto_received":
+        send_notification(
+            db=db,
+            user_id=tx.seller_id,
+            message=f"المشتري قام بتأكيد الدفع لصفقة #{tx.id}. يرجى التحقق.",
+            transaction_id=tx.id
+        )
     db.commit()
     return tx
 
@@ -328,6 +351,12 @@ async def raise_transaction_dispute(
     # 3. تحديث الحالة
     transaction.status = "disputed"
     
+    send_notification(
+    db=db,
+    user_id=ADMIN_USER_ID,
+    message=f"تم فتح نزاع جديد في الصفقة #{transaction.id} بين الطرفين.",
+    transaction_id=transaction.id
+    )
     try:
         db.commit()
         db.refresh(transaction)
@@ -389,5 +418,12 @@ async def cancel_expired_transaction(
         listing.remaining_amount_usdt += tx.locked_usdt_amount
         listing.is_active = True
         
+
+    send_notification(
+    db=db,
+    user_id=listing.buyer_id,
+    message=f"انتهى وقت الصفقة #{tx.id} دون إتمام الدفع. تم إلغاؤها.",
+    transaction_id=tx.id
+    )
     db.commit()
     return {"message": "تم إلغاء الصفقة بنجاح بسبب انتهاء الوقت."}
