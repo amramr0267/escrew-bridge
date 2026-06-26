@@ -89,7 +89,7 @@ class UserBrief(BaseModel):
         
 class TransactionResponse(BaseModel):
     id: int
-    listing_id: int
+    listing_id: Optional[int]  # اجعل الحقل اختيارياً 
     buyer_id: Optional[int]
     seller_id: int
     locked_usdt_amount: float
