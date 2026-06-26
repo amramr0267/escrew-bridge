@@ -111,6 +111,12 @@ class PlatformRevenue(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     
+class Message(Base):
+    __tablename__ = "messages"  # شرطتان سفليتان في البداية والنهاية    id = Column(Integer, primary_key=True)
+    transaction_id = Column(Integer, ForeignKey("transactions.id"))
+    sender_id = Column(Integer, ForeignKey("users.id"))
+    content = Column(String)
+    created_at = Column(DateTime, default=datetime.utcnow)
     
 class Notification(Base):
     __tablename__ = "notifications"
