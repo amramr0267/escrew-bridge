@@ -83,7 +83,7 @@ class UserBrief(BaseModel):
     id: int
     username: str
     is_verified: bool  # Make sure this is in your User model
-
+    shamcash_number: str  # Add this field to show the ShamCash number
     class Config:
         from_attributes = True
 
@@ -104,7 +104,7 @@ class TransactionResponse(BaseModel):
     # العلاقات
     buyer: Optional[UserBrief]
     seller: UserBrief
-    
+    shamcash_number: Optional[str] = None  # رقم الشام كاش للمشتري
     # حقول الرسوم والمالية (مدمجة)
     seller_fee: Optional[float] = None
     buyer_fee: Optional[float] = None
