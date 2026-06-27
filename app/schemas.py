@@ -151,3 +151,11 @@ class UserFullProfile(BaseModel):
         from_attributes = True
 
 
+class MessageRead(BaseModel):
+    id: int
+    content: str
+    sender_id: int
+    created_at: datetime  # أضف هذا الحقل
+
+    class Config:
+        from_attributes = True
