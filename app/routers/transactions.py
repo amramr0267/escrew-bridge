@@ -429,3 +429,29 @@ async def cancel_expired_transaction(
     # 4. حفظ التغييرات أخيراً
     db.commit()
     return {"message": "تم إلغاء الصفقة بنجاح."}
+
+
+@router.post("/messages/{transaction_id}")
+async def send_message(
+    transaction_id: int,
+    content: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    # تحقق أن المستخدم طرف في الصفقة
+    tx = db.query(models.Transaction).filter(models.Transaction.id == transaction_id).first()
+    if not tx or (tx.buyer_id != current_user.id and tx.seller_id != current_user.id):
+        raise HTTPException(status_code=403, detail="ليس لديك صلاحية للمراسلة")
+
+    new_msg = models.Message(
+        transaction_id=transaction_id,
+        sender_id=current_user.id,
+        content=content
+    )
+    db.add(new_msg)
+    db.commit()
+    return new_msg
+
+@router.get("/messages/{transaction_id}")
+async def get_messages(transaction_id: int, db: Session = Depends(get_db)):
+    return db.query(models.Message).filter(models.Message.transaction_id == transaction_id).order_by(models.Message.created_at.asc()).all()
