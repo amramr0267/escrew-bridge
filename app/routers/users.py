@@ -2,7 +2,7 @@ import shutil
 from typing import List
 from pathlib import Path  # Keep this one
 
-from backend.app.routers.notifications import send_notification
+from app.routers.notifications import send_notification
 from fastapi import APIRouter, Depends, UploadFile, File # Import File here
 from sqlalchemy.orm import Session
 # REMOVE 'Path' from the fastapi.params import line above if it exists
