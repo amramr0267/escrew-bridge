@@ -321,6 +321,16 @@ def calculate_fee(amount: float) -> float:
     # 0-500 = 0.5, 501-1000 = 1.0, etc.
     return (math.ceil(amount / 500)) * 0.5
 
+
+@router.post("/{transaction_id}/confirm-payment")
+async def confirm_payment(transaction_id: int, db: Session = Depends(get_db)):
+    tx = db.query(models.Transaction).filter(models.Transaction.id == transaction_id).first()
+    if tx:
+        tx.status = "payment_proof_submitted" # تغيير الحالة ليعرف البائع
+        db.commit()
+    return {"message": "تم التأكيد"}
+
+
 # 8️⃣ زر المشتري لفتح نزاع/اعتراض رسمي في حال مماطلة البائع
 @router.post("/raise-dispute/{transaction_id}", response_model=schemas.TransactionResponse)
 async def raise_transaction_dispute(
