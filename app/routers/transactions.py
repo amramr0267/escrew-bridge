@@ -10,7 +10,6 @@ from app.services.security import get_current_user, log_platform_revenue
 from decimal import Decimal
 import math  
 from app.routers.notifications import send_notification
-
 router = APIRouter(prefix="", tags=["Transactions"]) 
 
 # 1️⃣ البائع ينشئ عرض بيع USDT في السوق (Listing)
@@ -131,13 +130,6 @@ async def match_buyer_to_listing(
         transaction_id=new_tx.id
     )
 
-    # 🔔 إرسال تنبيه للمشتري (Buyer) لتأكيد بدء الصفقة
-    send_notification(
-        db=db,
-        user_id=buyer_id,
-        message=f"لقد بدأت صفقة جديدة بقيمة {order.buy_amount_usdt} USDT. يرجى إتمام الدفع.",
-        transaction_id=new_tx.id
-    )
     return new_tx
 
 
@@ -181,6 +173,7 @@ async def get_all_active_listings(db: Session = Depends(get_db)):
 @router.get("/{id}", response_model=schemas.TransactionResponse)
 def get_transaction_by_id(
     id: int, 
+    shamcash_number: str = None,  # Optional query parameter for ShamCash
     db: Session = Depends(get_db), 
     current_user: models.User = Depends(get_current_user)
 ):
@@ -225,7 +218,7 @@ def get_transaction_by_id(
     # 4. حقن البيانات في كائن الصفقة ليراها الـ Schema
     tx.system_wallet_address = config.system_wallet_address if config else "غير متوفر"
     tx.supported_network = config.supported_network if config else "غير محدد"
-        
+    tx.shamcash_number = shamcash_number
     return tx
 
 # منطق الحساب في الباك إند
@@ -338,7 +331,7 @@ async def raise_transaction_dispute(
     # 1. البحث عن المعاملة (تعديل: السماح بفتح النزاع في حالتي pending أو crypto_confirmed)
     transaction = db.query(models.Transaction).filter(
         models.Transaction.id == transaction_id,
-        models.Transaction.status.in_(["pending", "crypto_confirmed"]) 
+        models.Transaction.status.in_(["pending_deposit", "crypto_confirmed"]) 
     ).first()
 
     if not transaction:
@@ -350,13 +343,15 @@ async def raise_transaction_dispute(
 
     # 3. تحديث الحالة
     transaction.status = "disputed"
-    
-    send_notification(
-    db=db,
-    user_id=ADMIN_USER_ID,
-    message=f"تم فتح نزاع جديد في الصفقة #{transaction.id} بين الطرفين.",
-    transaction_id=transaction.id
-    )
+    admin_user = db.query(models.User).filter(models.User.role == 'admin').first()
+    if admin_user:
+        send_notification(
+            db=db,
+            user_id=admin_user.id, # أو معرف المسؤول
+            message=f"تم فتح نزاع جديد في الصفقة #{transaction.id} بين الطرفين.",
+            transaction_id=transaction.id
+        )
+
     try:
         db.commit()
         db.refresh(transaction)
@@ -405,25 +400,32 @@ async def cancel_expired_transaction(
     ).first()
 
     if not tx:
-        raise HTTPException(status_code=404, detail="الصفقة غير موجودة أو لا يمكن إلغاؤها.")
+        raise HTTPException(status_code=404, detail="الصفقة غير موجودة.")
 
-    # التحقق من أن الوقت قد انتهى فعلاً في السيرفر
     if datetime.utcnow() < tx.expires_at:
-        raise HTTPException(status_code=400, detail="لا يزال هناك وقت متبقي للصفقة.")
+        raise HTTPException(status_code=400, detail="لا يزال هناك وقت متبقي.")
 
-    # إلغاء الصفقة وإعادة تفعيل العرض (Listing) إذا كان متاحاً
+    # 1. إلغاء الصفقة
     tx.status = "cancelled"
+    
+    # 2. تحديث العرض
     listing = db.query(models.Listing).filter(models.Listing.id == tx.listing_id).first()
     if listing:
         listing.remaining_amount_usdt += tx.locked_usdt_amount
         listing.is_active = True
-        
+        db.add(listing) # تأكد من إضافة التحديث للمسار
 
-    send_notification(
-    db=db,
-    user_id=listing.buyer_id,
-    message=f"انتهى وقت الصفقة #{tx.id} دون إتمام الدفع. تم إلغاؤها.",
-    transaction_id=tx.id
-    )
+    # 3. إرسال التنبيه (استخدم tx.buyer_id وليس listing.buyer_id)
+    try:
+        send_notification(
+            db=db,
+            user_id=tx.buyer_id, # التصحيح: المشتري موجود في الصفقة tx
+            message=f"انتهى وقت الصفقة #{tx.id} دون إتمام الدفع. تم إلغاؤها.",
+            transaction_id=tx.id
+        )
+    except Exception as e:
+        print(f"Notification error: {e}")
+
+    # 4. حفظ التغييرات أخيراً
     db.commit()
-    return {"message": "تم إلغاء الصفقة بنجاح بسبب انتهاء الوقت."}
+    return {"message": "تم إلغاء الصفقة بنجاح."}

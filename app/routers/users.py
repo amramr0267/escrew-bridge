@@ -2,6 +2,7 @@ import shutil
 from typing import List
 from pathlib import Path  # Keep this one
 
+from backend.app.routers.notifications import send_notification
 from fastapi import APIRouter, Depends, UploadFile, File # Import File here
 from sqlalchemy.orm import Session
 # REMOVE 'Path' from the fastapi.params import line above if it exists
@@ -9,7 +10,7 @@ from app.database import get_db
 import app.models as models
 import app.schemas as schemas
 from app.services.security import get_current_user
-
+ADMIN_USER_ID = 3
 router = APIRouter(prefix="/api/users", tags=["Users"])
 
 @router.get("/me", response_model=schemas.UserResponse)
@@ -91,7 +92,13 @@ async def request_verification(
         id_back_path=path_to_back,
         selfie_with_id_path=path_to_selfie
     )
-    
+    admin_user = db.query(models.User).filter(models.User.role == 'admin').first()
+    if admin_user:
+        send_notification(
+            db=db,
+            user_id=admin_user.id, # أو معرف المسؤول
+            message=f"المستخدم {current_user.username} قام برفع وثائق للتوثيق."
+        )
     db.add(new_request)
     current_user.verification_status = "pending"
     db.commit()
