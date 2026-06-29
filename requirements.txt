@@ -10,3 +10,4 @@ PyJWT
 bcrypt
 python-multipart
 passlib
+supabase
