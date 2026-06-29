@@ -253,44 +253,48 @@ async def get_verification_requests(
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Not authorized")
 
-    # 1. جلب الطلبات مع بيانات المستخدم المرتبطة
+    # 1. جلب الطلبات
     requests = db.query(models.VerificationRequest).filter(
         models.VerificationRequest.status == "pending"
     ).all()
-    # دالة مساعدة لتنظيف المسارات
-    def get_clean_path(path: str):
-        if not path: return ""
-        return path.lstrip('/') # إزالة أي سلاش في البداية
 
-    # في دالة get_verification_requests:
-    front_path = get_clean_path(req.id_front_path)
-    back_path = get_clean_path(req.id_back_path)
-    selfie_path = get_clean_path(req.selfie_with_id_path)
-
-   
-
-    # 2. تحويل النتائج وإضافة روابط مؤقتة للصور
     detailed_requests = []
+    
+    # دالة تنظيف المسارات
+    def clean_path(p: str) -> str:
+        return p.strip('/') if p else ""
+
+    # 2. المعالجة داخل الحلقة (Loop)
     for req in requests:
-        # إنشاء روابط مؤقتة (صلاحية لمدة ساعة واحدة)
-        # توليد الروابط
-        front_url = supabase.storage.from_("identity-verifications").create_signed_url(front_path, 3600)['signedURL']
-        back_url = supabase.storage.from_("identity-verifications").create_signed_url(back_path, 3600)['signedURL']
-        selfie_url = supabase.storage.from_("identity-verifications").create_signed_url(selfie_path, 3600)['signedURL']
+        try:
+            # تنظيف المسارات
+            f_path = clean_path(req.id_front_path)
+            b_path = clean_path(req.id_back_path)
+            s_path = clean_path(req.selfie_with_id_path)
+            
+            # جلب الرابط باستخدام المعاملات المحدثة
+            def get_url(path):
+                if not path: return None
+                # توليد الرابط
+                result = supabase.storage.from_("identity-verifications").create_signed_url(path, 3600)
+                # استخراج الرابط بأمان
+                return result.get('signedURL') if isinstance(result, dict) else result.signed_url
 
-        detailed_requests.append({
-            "request_id": req.id,
-            "user_id": req.user_id,
-            "username": req.user.username, # تأكد من وجود العلاقة بين VerificationRequest و User
-            "email": req.user.email,
-            "id_front_url": front_url,
-            "id_back_url": back_url,
-            "selfie_url": selfie_url,
-            "created_at": req.created_at
-        })
-        
+            detailed_requests.append({
+                "request_id": req.id,
+                "user_id": req.user_id,
+                "username": req.user.username if req.user else "Unknown",
+                "email": req.user.email if req.user else "Unknown",
+                "id_front_url": get_url(f_path),
+                "id_back_url": get_url(b_path),
+                "selfie_url": get_url(s_path),
+                "created_at": req.created_at
+            })
+        except Exception as e:
+            print(f"Error processing request {req.id}: {e}")
+            continue
+            
     return detailed_requests
-
 
 # Approve a request
 @router.post("/approve/{user_id}")
