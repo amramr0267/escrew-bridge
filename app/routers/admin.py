@@ -74,18 +74,13 @@ async def resolve_dispute_force_release(
 
 
 # 3. رؤية سجل كافة العمليات في المنصة (محمي بالأدمن)
-@router.get("/all-transactions", response_model=list[schemas.TransactionResponse])
+@router.get("/all-transactions")
 async def get_all_system_transactions(
+    limit: int = 50, offset: int = 0, # إضافة الترقيم
     db: Session = Depends(get_db),
     current_admin: models.User = Depends(get_current_admin)
 ):
-    """
-    لوحة المراقبة العامة للأدمن:
-    عرض كل العمليات الحركية والمالية داخل السيستم أياً كانت حالتها للتدقيق المالي الشامل.
-    """
-    transactions = db.query(models.Transaction).order_by(models.Transaction.created_at.desc()).all()
-    return transactions
-
+    return db.query(models.Transaction).order_by(models.Transaction.created_at.desc()).offset(offset).limit(limit).all()
 
 # 4. التعديل الذكي لمبلغ المعاملة وإعادة حساب العملة المحلية (محمي بالأدمن)
 @router.post("/force-confirm-adjusted/{transaction_id}", response_model=schemas.TransactionResponse)

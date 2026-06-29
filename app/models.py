@@ -27,7 +27,7 @@ class User(Base):
     is_verified = Column(Boolean, default=False)
     id_card_url = Column(String, nullable=True)
     verification_status = Column(String, default="unverified")
-    
+    push_token = Column(String, nullable=True)
     # العلاقات
     listings = relationship("Listing", back_populates="seller")
     transactions_as_buyer = relationship("Transaction", foreign_keys="[Transaction.buyer_id]", back_populates="buyer")
