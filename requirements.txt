@@ -12,4 +12,3 @@ python-multipart
 passlib
 supabase
 request
-json
