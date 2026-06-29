@@ -257,15 +257,27 @@ async def get_verification_requests(
     requests = db.query(models.VerificationRequest).filter(
         models.VerificationRequest.status == "pending"
     ).all()
+    # دالة مساعدة لتنظيف المسارات
+    def get_clean_path(path: str):
+        if not path: return ""
+        return path.lstrip('/') # إزالة أي سلاش في البداية
+
+    # في دالة get_verification_requests:
+    front_path = get_clean_path(req.id_front_path)
+    back_path = get_clean_path(req.id_back_path)
+    selfie_path = get_clean_path(req.selfie_with_id_path)
+
+   
 
     # 2. تحويل النتائج وإضافة روابط مؤقتة للصور
     detailed_requests = []
     for req in requests:
         # إنشاء روابط مؤقتة (صلاحية لمدة ساعة واحدة)
-        front_url = supabase.storage.from_("identity-verifications").create_signed_url(req.id_front_path, 3600).signed_url
-        back_url = supabase.storage.from_("identity-verifications").create_signed_url(req.id_back_path, 3600).signed_url
-        selfie_url = supabase.storage.from_("identity-verifications").create_signed_url(req.selfie_with_id_path, 3600).signed_url
-        
+        # توليد الروابط
+        front_url = supabase.storage.from_("identity-verifications").create_signed_url(front_path, 3600)['signedURL']
+        back_url = supabase.storage.from_("identity-verifications").create_signed_url(back_path, 3600)['signedURL']
+        selfie_url = supabase.storage.from_("identity-verifications").create_signed_url(selfie_path, 3600)['signedURL']
+
         detailed_requests.append({
             "request_id": req.id,
             "user_id": req.user_id,
