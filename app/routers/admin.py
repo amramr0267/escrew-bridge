@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
+from app.routers.notifications import send_notification
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -8,6 +9,11 @@ import app.models as models
 import app.schemas as schemas
 from decimal import Decimal
 from app.services.security import get_current_admin, get_current_user  # استيراد حارس الإدارة الصارم
+from supabase import create_client
+import os
+
+
+supabase = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
 
 router = APIRouter(
     prefix="/api/admin",
@@ -251,10 +257,36 @@ async def get_verification_requests(
 ):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Not authorized")
-    return db.query(models.VerificationRequest).filter(models.VerificationRequest.status == "pending").all()
+
+    # 1. جلب الطلبات مع بيانات المستخدم المرتبطة
+    requests = db.query(models.VerificationRequest).filter(
+        models.VerificationRequest.status == "pending"
+    ).all()
+
+    # 2. تحويل النتائج وإضافة روابط مؤقتة للصور
+    detailed_requests = []
+    for req in requests:
+        # إنشاء روابط مؤقتة (صلاحية لمدة ساعة واحدة)
+        front_url = supabase.storage.from_("identity-verifications").create_signed_url(req.id_front_path, 3600).signed_url
+        back_url = supabase.storage.from_("identity-verifications").create_signed_url(req.id_back_path, 3600).signed_url
+        selfie_url = supabase.storage.from_("identity-verifications").create_signed_url(req.selfie_with_id_path, 3600).signed_url
+        
+        detailed_requests.append({
+            "request_id": req.id,
+            "user_id": req.user_id,
+            "username": req.user.username, # تأكد من وجود العلاقة بين VerificationRequest و User
+            "email": req.user.email,
+            "id_front_url": front_url,
+            "id_back_url": back_url,
+            "selfie_url": selfie_url,
+            "created_at": req.created_at
+        })
+        
+    return detailed_requests
+
 
 # Approve a request
-@router.post("/approve-verification/{user_id}")
+@router.post("/approve/{user_id}")
 async def approve_verification(
     user_id: int,
     db: Session = Depends(get_db),
@@ -262,9 +294,58 @@ async def approve_verification(
 ):
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Not authorized")
-    
+
     user = db.query(models.User).filter(models.User.id == user_id).first()
-    user.verification_status = "approved"
-    user.is_verified = True
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.verification_status = "verified"
+    
+    # إرسال تنبيه للمستخدم
+    send_notification(db=db, user_id=user.id, message="تهانينا! تم قبول طلب توثيق هويتك بنجاح.")
+    
     db.commit()
-    return {"message": "User verified successfully"}
+    return {"message": "تم قبول التوثيق بنجاح"}
+
+
+
+@router.post("/reject/{user_id}")
+async def reject_verification(
+    user_id: int,
+    reason: str = "مستندات غير واضحة",
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    # 1. البحث عن طلب التوثيق الخاص بالمستخدم
+    verification_req = db.query(models.VerificationRequest).filter(
+        models.VerificationRequest.user_id == user_id,
+        models.VerificationRequest.status == "pending"
+    ).first()
+
+    if not verification_req:
+        raise HTTPException(status_code=404, detail="لا يوجد طلب توثيق معلق لهذا المستخدم")
+
+    # 2. حذف الملفات من Supabase
+    try:
+        files_to_delete = [
+            verification_req.id_front_path,
+            verification_req.id_back_path,
+            verification_req.selfie_with_id_path
+        ]
+        supabase.storage.from_("identity-verifications").remove(files_to_delete)
+    except Exception as e:
+        print(f"خطأ أثناء حذف الملفات من Supabase: {e}")
+
+    # 3. تحديث الحالة
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    user.verification_status = "rejected"
+    verification_req.status = "rejected"
+    
+    # 4. إرسال تنبيه للمستخدم
+    send_notification(db=db, user_id=user.id, message=f"عذراً، تم رفض طلب التوثيق. السبب: {reason}")
+    
+    db.commit()
+    return {"message": "تم رفض التوثيق وحذف الوثائق بنجاح"}
