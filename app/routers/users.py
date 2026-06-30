@@ -113,3 +113,17 @@ async def request_verification(
     db.commit()
     
     return {"message": "تم إرسال طلب التوثيق بنجاح."}
+
+
+@router.post("/update-token")
+async def update_user_token(
+    data: dict, 
+    db: Session = Depends(get_db), 
+    current_user: models.User = Depends(get_current_user)
+):
+    token = data.get("push_token")
+    if token:
+        current_user.push_token = token
+        db.commit()
+        return {"message": "تم تحديث التوكن بنجاح"}
+    raise HTTPException(status_code=400, detail="Invalid token")
