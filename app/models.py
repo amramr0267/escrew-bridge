@@ -32,7 +32,7 @@ class User(Base):
     listings = relationship("Listing", back_populates="seller")
     transactions_as_buyer = relationship("Transaction", foreign_keys="[Transaction.buyer_id]", back_populates="buyer")
     transactions_as_seller = relationship("Transaction", foreign_keys="[Transaction.seller_id]", back_populates="seller")
-
+    verification_requests = relationship("VerificationRequest", back_populates="user")
 
 # app/models.py
 
@@ -47,6 +47,9 @@ class VerificationRequest(Base):
     selfie_with_id_path = Column(String, nullable=False) # Selfie holding ID
     status = Column(String, default="pending")        # 'pending', 'approved', 'rejected'
     created_at = Column(DateTime, default=datetime.utcnow)
+    user = relationship("User", back_populates="verification_requests")
+
+
 
 class Listing(Base):
     __tablename__ = "listings"

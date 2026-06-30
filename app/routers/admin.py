@@ -11,7 +11,7 @@ from decimal import Decimal
 from app.services.security import get_current_admin, get_current_user  # استيراد حارس الإدارة الصارم
 from supabase import create_client
 import os
-
+from sqlalchemy.orm import joinedload
 
 supabase = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
 
@@ -254,9 +254,10 @@ async def get_verification_requests(
         raise HTTPException(status_code=403, detail="Not authorized")
 
     # 1. جلب الطلبات
-    requests = db.query(models.VerificationRequest).filter(
-        models.VerificationRequest.status == "pending"
-    ).all()
+    requests = db.query(models.VerificationRequest)\
+                .options(joinedload(models.VerificationRequest.user))\
+                .filter(models.VerificationRequest.status == "pending")\
+                .all()
 
     detailed_requests = []
     

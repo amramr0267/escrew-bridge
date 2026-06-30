@@ -78,8 +78,8 @@ async def request_verification(
 ):
     # دالة مساعدة لرفع الملف إلى Supabase
     def upload_to_supabase(file: UploadFile, folder: str) -> str:
-        file_path = f"verifications/{current_user.id}/{folder}_{file.filename}"
-        # رفع الملف مباشرة دون حفظه في /tmp
+        file_path = f"{current_user.id}/{folder}_{file.filename}"
+ 
         supabase.storage.from_("verifications").upload(
             path=file_path,
             file=file.file.read(),
