@@ -250,6 +250,16 @@ async def get_verification_requests(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
+    
+    # أضف هذا الكود في دالة get_verification_requests مؤقتاً
+    try:
+        # جلب قائمة الملفات داخل المجلد 5
+        files = supabase.storage.from_("verifications").list("5")
+        print(f"DEBUG: Files found in folder '5': {files}")
+    except Exception as e:
+        print(f"DEBUG: Could not list folder '5': {e}")
+
+
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Not authorized")
 
