@@ -275,12 +275,24 @@ async def get_verification_requests(
             
             # جلب الرابط باستخدام المعاملات المحدثة
             def get_url(path):
-                if not path: return None
-                # توليد الرابط
-                result = supabase.storage.from_("verifications").create_signed_url(path, 3600)
-                # استخراج الرابط بأمان
-                return result.get('signedURL') if isinstance(result, dict) else result.signed_url
-
+                if not path: 
+                    return None
+                try:
+                    # تأكد من المسار: لا تضف اسم الـ Bucket هنا، 
+                    # لأن from_("verifications") حددته مسبقاً.
+                    # إذا كان المسار في DB هو "5/front_id_front.jpg"، استعمله كما هو.
+                    response = supabase.storage.from_("verifications").create_signed_url(path, 3600)
+                    
+                    # التعامل مع شكل الاستجابة
+                    if isinstance(response, dict):
+                        return response.get('signedURL')
+                    return response # في بعض الإصدارات تعود كسلسلة نصية مباشرة
+                except Exception as e:
+                    print(f"Error generating signed URL for {path}: {e}")
+                    print(f"DEBUG: Requesting signed URL for path: '{path}'")
+                    return None
+                
+            
             detailed_requests.append({
                 "request_id": req.id,
                 "user_id": req.user_id,
