@@ -80,7 +80,7 @@ async def request_verification(
     def upload_to_supabase(file: UploadFile, folder: str) -> str:
         file_path = f"verifications/{current_user.id}/{folder}_{file.filename}"
         # رفع الملف مباشرة دون حفظه في /tmp
-        supabase.storage.from_("identity-verifications").upload(
+        supabase.storage.from_("verifications").upload(
             path=file_path,
             file=file.file.read(),
             file_options={"content-type": file.content_type}
