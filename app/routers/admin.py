@@ -277,7 +277,7 @@ async def get_verification_requests(
             def get_url(path):
                 if not path: return None
                 # توليد الرابط
-                result = supabase.storage.from_("identity-verifications").create_signed_url(path, 3600)
+                result = supabase.storage.from_("verifications").create_signed_url(path, 3600)
                 # استخراج الرابط بأمان
                 return result.get('signedURL') if isinstance(result, dict) else result.signed_url
 
