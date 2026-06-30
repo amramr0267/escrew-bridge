@@ -310,7 +310,7 @@ async def approve_verification(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    user.verification_status = "verified"
+    user.verification_status = "approved"
     
     # إرسال تنبيه للمستخدم
     send_notification(db=db, user_id=user.id, message="تهانينا! تم قبول طلب توثيق هويتك بنجاح.")
