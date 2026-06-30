@@ -255,7 +255,6 @@ async def get_verification_requests(
 
     # 1. جلب الطلبات
     requests = db.query(models.VerificationRequest)\
-                .options(joinedload(models.VerificationRequest.user))\
                 .filter(models.VerificationRequest.status == "pending")\
                 .all()
 
