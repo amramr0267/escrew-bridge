@@ -116,14 +116,11 @@ async def request_verification(
 
 
 @router.post("/update-token")
-async def update_user_token(
-    data: dict, 
-    db: Session = Depends(get_db), 
-    current_user: models.User = Depends(get_current_user)
-):
+async def update_user_token(data: dict, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     token = data.get("push_token")
+    print(f"DEBUG: Received token request for user {current_user.id}: {token}") # شاهد هذا في Vercel Logs
     if token:
         current_user.push_token = token
         db.commit()
-        return {"message": "تم تحديث التوكن بنجاح"}
-    raise HTTPException(status_code=400, detail="Invalid token")
+        return {"message": "تم التحديث"}
+    return {"message": "لا يوجد توكن"}
