@@ -250,16 +250,6 @@ async def get_verification_requests(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    
-    # أضف هذا الكود في دالة get_verification_requests مؤقتاً
-    try:
-        # جلب قائمة الملفات داخل المجلد 5
-        files = supabase.storage.from_("verifications").list("5")
-        print(f"DEBUG: Files found in folder '5': {files}")
-    except Exception as e:
-        print(f"DEBUG: Could not list folder '5': {e}")
-
-
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Not authorized")
 
@@ -283,34 +273,21 @@ async def get_verification_requests(
             b_path = clean_path(req.id_back_path)
             s_path = clean_path(req.selfie_with_id_path)
             
-            # جلب الرابط باستخدام المعاملات المحدثة
-            def get_url(path):
-                if not path: 
-                    return None
-                try:
-                    # تأكد من المسار: لا تضف اسم الـ Bucket هنا، 
-                    # لأن from_("verifications") حددته مسبقاً.
-                    # إذا كان المسار في DB هو "5/front_id_front.jpg"، استعمله كما هو.
-                    response = supabase.storage.from_("verifications").create_signed_url(path, 3600)
-                    
-                    # التعامل مع شكل الاستجابة
-                    if isinstance(response, dict):
-                        return response.get('signedURL')
-                    return response # في بعض الإصدارات تعود كسلسلة نصية مباشرة
-                except Exception as e:
-                    print(f"Error generating signed URL for {path}: {e}")
-                    print(f"DEBUG: Requesting signed URL for path: '{path}'")
-                    return None
-                
+            # جلب الرابط العام (Public URL)
+            def get_public_url(path):
+                if not path: return None
+                # هذا سيعيد الرابط العام المباشر للصورة
+                res = supabase.storage.from_("verifications").get_public_url(path)
+                return res
             
             detailed_requests.append({
                 "request_id": req.id,
                 "user_id": req.user_id,
                 "username": req.user.username if req.user else "Unknown",
                 "email": req.user.email if req.user else "Unknown",
-                "id_front_url": get_url(f_path),
-                "id_back_url": get_url(b_path),
-                "selfie_url": get_url(s_path),
+                "id_front_url": get_public_url(f_path),
+                "id_back_url": get_public_url(b_path),
+                "selfie_url": get_public_url(s_path),
                 "created_at": req.created_at
             })
         except Exception as e:
