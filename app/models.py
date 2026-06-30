@@ -127,3 +127,4 @@ class Notification(Base):
     message = Column(String, nullable=False)
     is_read = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+    title = Column(String, nullable=True)  # <-- أضف هذا السطر
