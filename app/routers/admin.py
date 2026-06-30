@@ -309,8 +309,14 @@ async def approve_verification(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    verification_req = db.query(models.VerificationRequest).filter(
+        models.VerificationRequest.user_id == user_id,
+        models.VerificationRequest.status == "pending"
+    ).first()
+        
     user.verification_status = "approved"
-    
+    verification_req.status = "approved"
+
     # إرسال تنبيه للمستخدم
     send_notification(db=db, user_id=user.id, message="تهانينا! تم قبول طلب توثيق هويتك بنجاح.")
     
