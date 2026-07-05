@@ -123,9 +123,16 @@ async def match_buyer_to_listing(
     db.commit()
     db.refresh(new_tx)
     # 🔔 إرسال تنبيه للبائع (Seller) أن هناك من اشترى منه
+    if listing.type == "sell":
+        # إذا كنت تشتري من شخص يبيع، الإشعار يذهب للبائع (لتنبيهه بوجود طلب)
+        recipient_id = seller_id
+    else:
+        # إذا كنت تبيع لشخص يشتري، الإشعار يذهب للمشتري
+        recipient_id = buyer_id
+
     send_notification(
         db=db,
-        user_id=seller_id,
+        user_id=recipient_id, # استخدام المتغير الديناميكي
         message=f"لديك صفقة جديدة بقيمة {order.buy_amount_usdt} USDT. يرجى المتابعة.",
         transaction_id=new_tx.id
     )
