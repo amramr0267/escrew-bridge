@@ -117,10 +117,10 @@ async def request_verification(
 
 @router.post("/update-token")
 async def update_user_token(data: dict, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    token = data.get("push_token")
+    token = data.get("fcm_token")
     print(f"DEBUG: Received token request for user {current_user.id}: {token}") # شاهد هذا في Vercel Logs
     if token:
-        current_user.push_token = token
+        current_user.fcm_token = token
         db.commit()
         return {"message": "تم التحديث"}
     return {"message": "لا يوجد توكن"}
