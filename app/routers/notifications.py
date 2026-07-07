@@ -4,6 +4,10 @@ import os
 from sqlalchemy.orm import Session
 from app import models
 
+from fastapi import APIRouter
+router = APIRouter()
+
+
 def initialize_firebase():
     # نقرأ القيم من متغيرات البيئة
     # نستخدم json.loads إذا كانت القيمة مخزنة كـ JSON كامل، أو نقرأ الحقول فرادى
