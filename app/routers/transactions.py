@@ -9,7 +9,7 @@ from app.services.binance_api import execute_binance_withdrawal, verify_txid_on_
 from app.services.security import get_current_user, log_platform_revenue  
 from decimal import Decimal
 import math  
-from app.routers.notifications import send_notification
+from app.routers.notifications import notify_user 
 router = APIRouter(prefix="", tags=["Transactions"]) 
 
 # 1️⃣ البائع ينشئ عرض بيع USDT في السوق (Listing)
@@ -130,7 +130,7 @@ async def match_buyer_to_listing(
         # إذا كنت تبيع لشخص يشتري، الإشعار يذهب للمشتري
         recipient_id = buyer_id
 
-    send_notification(
+    notify_user(
         db=db,
         user_id=recipient_id, # استخدام المتغير الديناميكي
         message=f"لديك صفقة جديدة بقيمة {order.buy_amount_usdt} USDT. يرجى المتابعة.",
@@ -264,7 +264,7 @@ async def submit_txid(payload: schemas.TxIDSubmit, db: Session = Depends(get_db)
     tx.buyer_fee = fee
 
     if  tx.status == "crypto_received":
-        send_notification(
+        notify_user(
             db=db,
             user_id=tx.seller_id,
             message=f"المشتري قام بتأكيد الدفع لصفقة #{tx.id}. يرجى التحقق.",
@@ -362,7 +362,7 @@ async def raise_transaction_dispute(
     transaction.status = "disputed"
     admin_user = db.query(models.User).filter(models.User.role == 'admin').first()
     if admin_user:
-        send_notification(
+        notify_user(
             db=db,
             user_id=admin_user.id, # أو معرف المسؤول
             message=f"تم فتح نزاع جديد في الصفقة #{transaction.id} بين الطرفين.",
@@ -434,7 +434,7 @@ async def cancel_expired_transaction(
 
     # 3. إرسال التنبيه (استخدم tx.buyer_id وليس listing.buyer_id)
     try:
-        send_notification(
+        notify_user(
             db=db,
             user_id=tx.buyer_id, # التصحيح: المشتري موجود في الصفقة tx
             message=f"انتهى وقت الصفقة #{tx.id} دون إتمام الدفع. تم إلغاؤها.",
