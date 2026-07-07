@@ -12,3 +12,4 @@ python-multipart
 passlib
 supabase
 requests
+firebase-admin>=6.0.0
