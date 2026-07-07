@@ -2,7 +2,7 @@ from http.client import HTTPException
 import shutil
 from typing import List
 from pathlib import Path  # Keep this one
-from app.routers.notifications import send_notification
+from app.routers.notifications import notify_user
 from fastapi import APIRouter, Depends, UploadFile, File # Import File here
 from sqlalchemy.orm import Session
 # REMOVE 'Path' from the fastapi.params import line above if it exists
@@ -106,7 +106,7 @@ async def request_verification(
     # بقية منطق الإخطار وتحديث الحالة
     admin_user = db.query(models.User).filter(models.User.role == 'admin').first()
     if admin_user:
-        send_notification(db=db, user_id=admin_user.id, message=f"المستخدم {current_user.username} قام برفع وثائق للتوثيق.")
+        notify_user(db=db, user_id=admin_user.id, message=f"المستخدم {current_user.username} قام برفع وثائق للتوثيق.")
     
     db.add(new_request)
     current_user.verification_status = "pending"
