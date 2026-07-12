@@ -133,7 +133,7 @@ async def match_buyer_to_listing(
     notify_user(
         db=db,
         user_id=recipient_id, # استخدام المتغير الديناميكي
-        message=f"لديك صفقة جديدة بقيمة {order.buy_amount_usdt} USDT. يرجى المتابعة.",
+        body=f"لديك صفقة جديدة بقيمة {order.buy_amount_usdt} USDT. يرجى المتابعة.",
         transaction_id=new_tx.id
     )
 
@@ -267,7 +267,7 @@ async def submit_txid(payload: schemas.TxIDSubmit, db: Session = Depends(get_db)
         notify_user(
             db=db,
             user_id=tx.seller_id,
-            message=f"المشتري قام بتأكيد الدفع لصفقة #{tx.id}. يرجى التحقق.",
+            body=f"المشتري قام بتأكيد الدفع لصفقة #{tx.id}. يرجى التحقق.",
             transaction_id=tx.id
         )
     db.commit()
@@ -365,7 +365,7 @@ async def raise_transaction_dispute(
         notify_user(
             db=db,
             user_id=admin_user.id, # أو معرف المسؤول
-            message=f"تم فتح نزاع جديد في الصفقة #{transaction.id} بين الطرفين.",
+            body=f"تم فتح نزاع جديد في الصفقة #{transaction.id} بين الطرفين.",
             transaction_id=transaction.id
         )
 
@@ -437,7 +437,7 @@ async def cancel_expired_transaction(
         notify_user(
             db=db,
             user_id=tx.buyer_id, # التصحيح: المشتري موجود في الصفقة tx
-            message=f"انتهى وقت الصفقة #{tx.id} دون إتمام الدفع. تم إلغاؤها.",
+            body=f"انتهى وقت الصفقة #{tx.id} دون إتمام الدفع. تم إلغاؤها.",
             transaction_id=tx.id
         )
     except Exception as e:

@@ -318,7 +318,7 @@ async def approve_verification(
     verification_req.status = "approved"
 
     # إرسال تنبيه للمستخدم
-    notify_user(db=db, user_id=user.id, message="تهانينا! تم قبول طلب توثيق هويتك بنجاح.")
+    notify_user(db=db, user_id=user.id, body="تهانينا! تم قبول طلب توثيق هويتك بنجاح.")
     
     db.commit()
     return {"message": "تم قبول التوثيق بنجاح"}
@@ -361,7 +361,7 @@ async def reject_verification(
     verification_req.status = "rejected"
     
     # 4. إرسال تنبيه للمستخدم
-    notify_user(db=db, user_id=user.id, message=f"عذراً، تم رفض طلب التوثيق. السبب: {reason}")
+    notify_user(db=db, user_id=user.id, body=f"عذراً، تم رفض طلب التوثيق. السبب: {reason}")
     
     db.commit()
     return {"message": "تم رفض التوثيق وحذف الوثائق بنجاح"}
