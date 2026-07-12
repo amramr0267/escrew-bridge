@@ -2,7 +2,7 @@ from http.client import HTTPException
 import shutil
 from typing import List
 from pathlib import Path  # Keep this one
-from app.routers.notifications import notify_user
+from app.services.notifications import notify_user
 from app.routers import listings
 from fastapi import APIRouter, Depends, UploadFile, File # Import File here
 from sqlalchemy.orm import Session

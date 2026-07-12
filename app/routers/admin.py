@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
-from app.routers.notifications import notify_user
+from app.services.notifications import notify_user
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session

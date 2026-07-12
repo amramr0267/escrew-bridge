@@ -9,7 +9,7 @@ from app.services.binance_api import execute_binance_withdrawal, verify_txid_on_
 from app.services.security import get_current_user, log_platform_revenue  
 from decimal import Decimal
 import math  
-from app.routers.notifications import notify_user 
+from app.services.notifications import notify_user 
 router = APIRouter(prefix="", tags=["Transactions"]) 
 
 # 1️⃣ البائع ينشئ عرض بيع USDT في السوق (Listing)

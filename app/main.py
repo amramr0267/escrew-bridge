@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine, Base
 # استيراد نظيف ومرة واحدة فقط لكل ملف
-from app.routers import transactions, admin, auth , users, listings, notifications
+from app.routers import transactions, admin, auth , users, listings
 
 
 
@@ -32,7 +32,6 @@ app.include_router(transactions.router, prefix="/api/transactions")
 app.include_router(admin.router)
 app.include_router(users.router)
 app.include_router(listings.router, prefix="/api/listings")
-app.include_router(notifications.router)
 
 
 @app.get("/", tags=["الفحص العام"])
