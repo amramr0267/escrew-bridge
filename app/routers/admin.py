@@ -365,3 +365,14 @@ async def reject_verification(
     
     db.commit()
     return {"message": "تم رفض التوثيق وحذف الوثائق بنجاح"}
+
+
+@router.post("/test-notification")
+async def test_notification(current_user = Depends(get_current_user), db: Session = Depends(get_db)):
+    notify_user(
+        db=db,
+        user_id=current_user.id,
+        title="اختبار الاتصال",
+        body="إذا وصلك هذا الإشعار، فـ Firebase و الـ Backend يعملان بنجاح! 🚀"
+    )
+    return {"message": "Notification sent!"}
