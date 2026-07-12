@@ -3,6 +3,7 @@ import shutil
 from typing import List
 from pathlib import Path  # Keep this one
 from app.routers.notifications import notify_user
+from backend.app.routers import listings
 from fastapi import APIRouter, Depends, UploadFile, File # Import File here
 from sqlalchemy.orm import Session
 # REMOVE 'Path' from the fastapi.params import line above if it exists
@@ -116,11 +117,11 @@ async def request_verification(
 
 
 @router.post("/update-token")
-async def update_user_token(data: dict, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    token = data.get("fcm_token")
-    print(f"DEBUG: Received token request for user {current_user.id}: {token}") # شاهد هذا في Vercel Logs
-    if token:
-        current_user.fcm_token = token
-        db.commit()
-        return {"message": "تم التحديث"}
-    return {"message": "لا يوجد توكن"}
+async def update_token(token_data: dict, current_user = Depends(get_current_user), db: Session = Depends(listings.  get_db)):
+    fcm_token = token_data.get("fcm_token")
+    
+    # تحديث التوكن في قاعدة البيانات
+    current_user.fcm_token = fcm_token
+    db.commit()
+    
+    return {"message": "Token updated successfully"}
