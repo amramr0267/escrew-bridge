@@ -34,6 +34,7 @@ def initialize_firebase():
 initialize_firebase()
 
 def notify_user(db: Session, user_id: int, title: str, body: str, transaction_id: int = None):
+    print(f"DEBUG: notify_user called for user {user_id} with title: {title}") # أضف هذا
     # 1. حفظ في قاعدة البيانات (In-App)
     try:
         new_note = models.Notification(
