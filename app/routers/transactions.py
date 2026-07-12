@@ -132,6 +132,7 @@ async def match_buyer_to_listing(
 
     notify_user(
         db=db,
+        title="صفقة جديدة",
         user_id=recipient_id, # استخدام المتغير الديناميكي
         body=f"لديك صفقة جديدة بقيمة {order.buy_amount_usdt} USDT. يرجى المتابعة.",
         transaction_id=new_tx.id
@@ -266,6 +267,7 @@ async def submit_txid(payload: schemas.TxIDSubmit, db: Session = Depends(get_db)
     if  tx.status == "crypto_received":
         notify_user(
             db=db,
+            title="تأكيد الدفع",
             user_id=tx.seller_id,
             body=f"المشتري قام بتأكيد الدفع لصفقة #{tx.id}. يرجى التحقق.",
             transaction_id=tx.id
@@ -364,6 +366,7 @@ async def raise_transaction_dispute(
     if admin_user:
         notify_user(
             db=db,
+            title="نزاع جديد",
             user_id=admin_user.id, # أو معرف المسؤول
             body=f"تم فتح نزاع جديد في الصفقة #{transaction.id} بين الطرفين.",
             transaction_id=transaction.id
@@ -436,6 +439,7 @@ async def cancel_expired_transaction(
     try:
         notify_user(
             db=db,
+            title="إلغاء الصفقة",
             user_id=tx.buyer_id, # التصحيح: المشتري موجود في الصفقة tx
             body=f"انتهى وقت الصفقة #{tx.id} دون إتمام الدفع. تم إلغاؤها.",
             transaction_id=tx.id
