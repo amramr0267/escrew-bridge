@@ -45,6 +45,7 @@ def notify_user(db: Session, user_id: int, title: str, body: str, transaction_id
         )
         db.add(new_note)
         db.commit()
+        print("DEBUG: Notification saved to DB successfully")
     except Exception as e:
         print(f"Database Notification Error: {e}")
         db.rollback()
@@ -52,6 +53,7 @@ def notify_user(db: Session, user_id: int, title: str, body: str, transaction_id
     # 2. إرسال Push Notification عبر Firebase
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if user and user.fcm_token:
+        print(f"DEBUG: Found user {user_id} with token: {user.fcm_token[:10]}...")
         try:
             message = messaging.Message(
                 notification=messaging.Notification(title=title, body=body),
